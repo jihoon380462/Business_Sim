@@ -17,7 +17,7 @@
 6. `docs/DECISIONS.md` — 기획이 이미 확정한 결정 목록
 
 ## 3. 기술 조건
-- 순수 HTML + CSS + JS. 빌드 도구·프레임워크 없음. `index.html`을 더블클릭하거나 GitHub Pages에서 열면 바로 실행.
+- 순수 HTML + CSS + JS. 빌드 도구·프레임워크 없음. 로컬 서버(`python -m http.server`)나 GitHub Pages로 열면 바로 실행. (ES 모듈·fetch 때문에 Chrome에서 file:// 더블클릭은 안 됨)
 - ES Modules (`<script type="module">`). 외부 라이브러리 없음.
 - 세로 모바일 전용. 논리 해상도 360×640 기준, 더 긴 화면은 세로로 늘어남. 가로 모드 대응 안 함.
 - 데이터는 `src/data/*.json`을 `fetch`로 읽는다. **코드 안에 밸런스 숫자 리터럴 금지.**
