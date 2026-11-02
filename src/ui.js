@@ -181,7 +181,7 @@ export function createUI(game) {
         const miss = missingFor(o.item);
         const feas = miss.length ? `<span class="tag no">필요: ${miss.join(', ')}</span>` : days == null ? '<span class="tag no">라인 없음</span>' : days <= o.dueDays ? `<span class="tag ok">약 ${days}일이면 완료</span>` : `<span class="tag warn">약 ${days}일 걸림 (납기 ${o.dueDays}일)</span>`;
         return `<div class="card offer">
-          <div class="head">${tierTag(o.tier)}<span class="client">${esc(o.client)}</span><span class="muted" style="margin-left:auto">${o.expires - today}일 뒤 마감</span></div>
+          <div class="head">${tierTag(o.tier)}<span class="client">${esc(o.client)}</span><span class="muted" style="margin-left:auto">${o.expires - today <= 0 ? '오늘까지' : `${o.expires - today}일 뒤 마감`}</span></div>
           <div class="row" style="margin-top:8px"><div class="big-ico">${it.icon}</div><div class="grow"><div class="b" style="font-weight:800">${esc(it.name)}</div><div class="qty">${S.fmtQty(o)} <span class="muted">(${o.lots}상자)</span></div></div></div>
           <div class="facts">
             <div><div class="l">총액</div><div class="v">${man(value)}</div></div>
@@ -324,9 +324,9 @@ export function createUI(game) {
     return shell('📒 장부', body, tabs);
   }
 
-  function monthTable(r) {
+  function monthTable(r, inPopup = false) {
     const row = (l, v, cls = '') => `<tr><td>${l}</td><td class="${cls}">${man(v, { sign: true })}</td></tr>`;
-    return `<div class="card"><b>${esc(r.label)} 결산</b><table class="mtable" style="margin-top:6px">
+    return `<div class="card">${inPopup ? '' : `<b>${esc(r.label)} 결산</b>`}<table class="mtable" style="margin-top:6px">
       ${row('출하 매출', r.revenue, 'pos')}
       ${r.penalty ? row('위약금', -r.penalty, 'neg') : ''}
       ${row('원자재비', -r.raw, 'neg')}
@@ -427,7 +427,7 @@ export function createUI(game) {
     } else if (p.type === 'month') {
       const r = p.rec;
       html = `<div class="pp-hero"><div class="i">${r.net >= 0 ? '📗' : '📕'}</div><h2>${esc(r.label)} 결산</h2><p class="${r.net >= 0 ? 'pos' : 'neg'}" style="font-family:'Do Hyeon';font-size:28px;margin:0">${man(r.net, { sign: true })}</p></div>
-        <div class="pp-body">${monthTable(r)}
+        <div class="pp-body">${monthTable(r, true)}
           <div class="card"><div class="kv"><span>현금</span><b class="dh">${man(r.cash)}</b></div><div class="kv"><span>빚</span><b class="dh">${man(r.loan)}</b></div><div class="kv"><span>다음 달 들어올 외상</span><b class="dh">${man(r.receivable)}</b></div></div>
           <button class="btn pri full" data-a="pp-ok">다음 달로</button></div>`;
     } else if (p.type === 'news') {

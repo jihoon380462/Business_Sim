@@ -33,7 +33,7 @@ function boot() {
   window.addEventListener('resize', () => game.r.resize());
   document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(); game.ui.speed = 0; game.view.renderHud(); } });
   document.getElementById('boot').remove();
-  window.__game = game; // 디버그
+  window.__game = game; window.__S = S; // 디버그
 
   let last = performance.now();
   let hudTimer = 0;

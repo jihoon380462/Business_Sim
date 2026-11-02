@@ -177,6 +177,7 @@ button:disabled { opacity: .4; cursor: default; }
 .pp-hero { padding: 22px 20px 14px; text-align: center; }
 .pp-hero .i { font-size: 46px; line-height: 1.1; }
 .pp-hero h2 { font-family: "Do Hyeon", sans-serif; font-weight: 400; font-size: 26px; margin: 6px 0 2px; }
+.pp-hero p.pos { color: var(--green); } .pp-hero p.neg { color: var(--red); }
 .pp-hero p { margin: 6px 0 0; color: #3B4652; font-size: 14.5px; line-height: 1.6; white-space: pre-line; }
 .pp-body { padding: 0 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .story { background: var(--navy); color: #E7EDF4; border-radius: 0; }

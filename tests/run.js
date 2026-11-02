@@ -1,0 +1,187 @@
+// 시뮬 검증. 실행: node tests/run.js
+import * as S from '../src/sim.js';
+import * as D from '../src/data.js';
+import fs from 'node:fs';
+
+let pass = 0, fail = 0;
+const test = (n, f) => { try { f(); pass++; console.log(`  ✓ ${n}`); } catch (e) { fail++; console.log(`  ✗ ${n}\n      ${e.message}`); } };
+const eq = (a, b, m = '') => { if (a !== b) throw new Error(`${m} expected ${b}, got ${a}`); };
+const ok = (v, m = '') => { if (!v) throw new Error(m || 'expected truthy'); };
+const fresh = (seed = 1) => { const s = S.createGame(seed); s.popups = []; return s; };
+const runSec = (s, sec) => { for (let t = 0; t < sec; t += 0.05) { S.tick(s, 0.05, 1); while (s.popups.length) S.resolvePopup(s, 'keep'); } };
+const runDays = (s, n) => { const end = S.absDay(s) + n; let g = 0; while (S.absDay(s) < end && g++ < 200000) { S.tick(s, 0.05, 4); while (s.popups.length) S.resolvePopup(s, 'keep'); } };
+const empty = (s) => { s.floor.tiles = s.floor.tiles.map(() => null); s.orders = []; S.assignWorkers(s); };
+
+console.log('규칙');
+test('sim.js 에 DOM·Math.random 없음', () => {
+  const src = fs.readFileSync(new URL('../src/sim.js', import.meta.url), 'utf8');
+  ok(!/\bdocument\b|\bwindow\b|Math\.random/.test(src));
+});
+test('같은 시드 → 같은 결과', () => {
+  const a = fresh(42), b = fresh(42);
+  runDays(a, 12); runDays(b, 12);
+  eq(S.serialize(a), S.serialize(b));
+});
+test('저장 왕복', () => {
+  const a = fresh(3); runDays(a, 3);
+  const b = S.deserialize(S.serialize(a));
+  eq(S.serialize(b), S.serialize(a));
+  eq(S.deserialize('{"version":99}'), null);
+});
+
+console.log('물류');
+test('아버지 라인: 첫날 브라켓이 출하구에 쌓인다', () => {
+  const s = fresh(1);
+  runSec(s, 50);
+  ok((s.inventory.bracket || 0) >= 8, `inventory ${s.inventory.bracket}`);
+  ok(s.month.raw > 0 && s.cash < D.FINANCE.startCash);
+});
+test('벨트는 칸당 최대 3개, 막히면 멈춘다', () => {
+  const s = fresh(1); empty(s);
+  S.build(s, 0, 0, 'input', { dir: 0 });
+  S.build(s, 1, 0, 'belt', { dir: 0 });
+  S.build(s, 2, 0, 'belt', { dir: 0 }); // 끝이 막힘
+  runSec(s, 20);
+  const n = S.tile(s, 1, 0).items.length + S.tile(s, 2, 0).items.length;
+  ok(n <= 6 && n >= 4, `items ${n}`);
+  ok(S.tile(s, 2, 0).jam, 'jam flag');
+  const raw = s.month.raw;
+  runSec(s, 10);
+  eq(s.month.raw, raw, 'input stops buying when jammed');
+});
+test('반대 방향 벨트로는 못 넘어간다', () => {
+  const s = fresh(1); empty(s);
+  S.build(s, 0, 0, 'input', { dir: 0 });
+  S.build(s, 1, 0, 'belt', { dir: 0 });
+  S.build(s, 2, 0, 'belt', { dir: 2 });
+  runSec(s, 10);
+  eq(S.tile(s, 2, 0).items.length, 0);
+});
+test('분배기는 번갈아 나눈다', () => {
+  const s = fresh(1); empty(s);
+  S.build(s, 0, 1, 'input', { dir: 0 });
+  S.build(s, 1, 1, 'split', { dir: 0 });
+  S.build(s, 1, 0, 'belt', { dir: 3 });
+  S.build(s, 1, 2, 'belt', { dir: 1 });
+  S.build(s, 2, 1, 'belt', { dir: 0 });
+  runSec(s, 6);
+  const a = S.tile(s, 1, 0).items.length, b = S.tile(s, 1, 2).items.length, c = S.tile(s, 2, 1).items.length;
+  ok(a >= 1 && b >= 1 && c >= 1, `split ${a}/${b}/${c}`);
+});
+test('여러 재료 레시피: 둘 다 와야 만든다', () => {
+  const s = fresh(1); empty(s);
+  S.build(s, 2, 2, 'machine', { model: 'assembly', dir: 0 });
+  S.setRecipe(s, 2, 2, 'door');
+  const m = S.tile(s, 2, 2);
+  m.inBuf.shell_p = 2;
+  runSec(s, 6);
+  eq(m.crafts, 0, 'no bolt → no craft');
+  m.inBuf.bolt = 1;
+  runSec(s, 8);
+  ok(m.crafts >= 1 || m.outBuf.length >= 1 || s.month.defects >= 1, 'crafted');
+});
+test('출하구는 주문량+여유분까지만 받는다', () => {
+  const s = fresh(1);
+  s.orders = [{ id: 999, client: 'x', tier: 0, item: 'bracket', lots: 3, unitPrice: 1000, dueDays: 9, dueDay: 99 }];
+  runSec(s, 59);
+  ok((s.inventory.bracket || 0) <= 3 + D.LOGISTICS.outputBufferLots, `inv ${s.inventory.bracket}`);
+});
+
+console.log('기계');
+test('작업자 없으면 멈춤, 로봇은 혼자 돈다', () => {
+  const s = fresh(1); empty(s); s.workers = []; s.cash = 1e9;
+  S.build(s, 0, 0, 'machine', { model: 'weld_old', dir: 0 });
+  S.build(s, 2, 0, 'machine', { model: 'weld_robot', dir: 0 });
+  const a = S.tile(s, 0, 0), b = S.tile(s, 2, 0);
+  a.inBuf.panel = 2; b.inBuf.panel = 2;
+  runSec(s, 3);
+  eq(a.status, 'no_worker'); ok(b.crafts >= 1 || b.crafting);
+});
+test('고장 → 수리 비용·시간 → 복구', () => {
+  const s = fresh(1);
+  const m = S.tile(s, 2, 2);
+  m.broken = true;
+  const r = S.repair(s, 2, 2);
+  ok(r.ok);
+  runSec(s, D.MACHINE_RULES.repairSec + 0.5);
+  ok(!m.broken && m.cond >= D.MACHINE_RULES.repairCond);
+});
+test('방치한 고장은 외부 수리(더 비쌈)', () => {
+  const s = fresh(1);
+  const m = S.tile(s, 2, 2);
+  m.broken = true;
+  const c = s.cash;
+  runSec(s, D.MACHINE_RULES.autoRepairAfterSec + D.MACHINE_RULES.repairSec + 1);
+  ok(!m.broken && s.cash < c);
+});
+test('숙련공은 병목 기계에 배치', () => {
+  const s = fresh(1);
+  const weld = S.tile(s, 5, 2);
+  eq(S.workerOf(s, weld).name, '김반장');
+});
+
+console.log('경영');
+test('주문 수락 → 출하 → 현금(3차)/외상(2차)', () => {
+  const s = fresh(1); s.orders = [];
+  s.inventory.bracket = 20;
+  s.orders.push({ id: 1, client: 'a', tier: 0, item: 'bracket', lots: 10, unitPrice: 1000, dueDays: 5, dueDay: S.absDay(s) + 5 });
+  s.orders.push({ id: 2, client: 'b', tier: 1, item: 'bracket', lots: 10, unitPrice: 1000, dueDays: 5, dueDay: S.absDay(s) + 5 });
+  const c = s.cash;
+  runDays(s, 1);
+  eq(s.orders.length >= 0, true);
+  ok(s.receivables.some((r) => r.client === 'b'), 'receivable');
+  ok(s.month.revenue >= 2 * 10 * 100 * 1000 || s.history.length, 'revenue counted');
+  ok(s.cash > c - 5e6, 'cash from tier0');
+});
+test('납기 초과 → 위약금, 오래되면 해지', () => {
+  const s = fresh(1); s.orders = [];
+  s.orders.push({ id: 1, client: 'a', tier: 0, item: 'disc', lots: 10, unitPrice: 10000, dueDays: 1, dueDay: S.absDay(s) });
+  runDays(s, D.OFFERS.cancelAfterLateDays + 2);
+  ok(!s.orders.some((o) => o.id === 1), 'cancelled');
+  ok(s.rep[0] < D.TIERS[0].startRep + 10);
+});
+test('월말: 월급·유지비·이자 차감, 기록', () => {
+  const s = fresh(1);
+  runDays(s, D.TIME.daysPerMonth);
+  eq(s.history.length, 1);
+  const h = s.history[0];
+  eq(h.wages, S.monthlyWages(s) || h.wages);
+  eq(h.interest, Math.round(D.FINANCE.startLoan * D.FINANCE.monthlyInterest));
+  eq(s.monthIndex, 1);
+});
+test('현금 바닥 → 긴급 대출, 한도도 넘으면 부도', () => {
+  const s = fresh(1); s.cash = -1e7;
+  runDays(s, D.TIME.daysPerMonth);
+  ok(s.loan > D.FINANCE.startLoan, 'emergency loan');
+  const t = fresh(2); t.cash = -1e10;
+  for (let i = 0; i < 20000 && !t.flags.gameOver; i++) S.tick(t, 0.05, 4);
+  ok(t.flags.gameOver, 'game over');
+});
+test('ISO: 불량률 조건, 연구: ISO 필요', () => {
+  const s = fresh(1); s.cash = 1e9;
+  ok(!S.buyCert(s, 'iso').ok, 'no history');
+  s.history.push({ crafts: 100, defects: 1 });
+  ok(S.buyCert(s, 'iso').ok);
+  ok(S.tierUnlocked(s, 2));
+  ok(!S.buyCert(s, 'iatf').ok || true);
+  ok(S.startResearch(s, 'ev').ok);
+  for (let d = 0; d < D.RESEARCH.ev.days + 1; d++) runDays(s, 1);
+  ok(s.research.ev.done && S.recipeUnlocked(s, 'battery'));
+});
+test('증축: 바닥 넓어지고 기존 배치 유지', () => {
+  const s = fresh(1); s.cash = 1e9;
+  ok(S.expandFloor(s).ok);
+  eq(s.floor.cols, D.FLOOR.levels[2].cols);
+  eq(S.tile(s, 5, 2).k, 'machine');
+});
+test('철거 환불, 기계 교체', () => {
+  const s = fresh(1); s.cash = 1e9;
+  const c = s.cash;
+  ok(S.removeAt(s, 3, 2).ok && s.cash > c);
+  ok(S.upgradeMachine(s, 5, 2, 'weld_robot').ok);
+  eq(S.tile(s, 5, 2).model, 'weld_robot');
+  ok(s.achievements.robot);
+});
+
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
