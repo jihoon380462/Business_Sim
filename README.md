@@ -11,6 +11,7 @@
 | [docs/GDD.md](docs/GDD.md) | 전체 비전 (성장 단계, 시스템, 연애, 엔딩) |
 | [docs/SCOPE_V1.md](docs/SCOPE_V1.md) | 1차 개발 범위 — 이것만 만든다 |
 | [docs/HANDOFF_V1.md](docs/HANDOFF_V1.md) | 개발 담당 착수 지시서 |
+| [docs/UI_SPEC_V1.md](docs/UI_SPEC_V1.md) | V1 화면 명세 (레퍼런스: `art/reference/`) |
 | [docs/REPO_STRUCTURE.md](docs/REPO_STRUCTURE.md) | 폴더 구조, 담당 구획, 코드 규칙 |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 결정 기록 |
 | [docs/REQUESTS.md](docs/REQUESTS.md) | 기획 ↔ 개발 소통 |
