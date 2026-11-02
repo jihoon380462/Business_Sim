@@ -23,9 +23,10 @@ Business_Sim/
 │   ├── main.js               ← core와 ui를 연결하는 유일한 지점
 │   ├── core/                 ← 게임 로직 (순수 JS, 이식 대상)
 │   │   ├── state.js          ← 상태 정의, 초기값, 직렬화(저장/불러오기)
-│   │   ├── time.js           ← advanceWeek, N년차 M주, 계절 (타이머는 ui 담당)
+│   │   ├── time.js           ← advanceMonth, N년차 M월, 계절
+│   │   ├── stats.js          ← 스탯 5개·컨디션, 활동별 상승, 배율 계산
 │   │   ├── economy.js        ← 자금, 수입/지출, 생활비, 대출, 신용
-│   │   ├── jobs.js           ← 알바
+│   │   ├── jobs.js           ← 본업·여가 활동(슬롯 2개)
 │   │   ├── stocks.js         ← 주식 시장 시뮬레이션
 │   │   ├── business.js       ← 사업체 (개업·운영·직원·업그레이드)
 │   │   ├── relationships.js  ← 인물·호감도 (V1은 빈 틀만)
@@ -34,14 +35,15 @@ Business_Sim/
 │   ├── data/                 ← 밸런스 수치 (JSON). 초안은 기획이 주고, 조정은 개발이
 │   │   ├── config.json       ← 초기 자금, 생활비, 주/년 길이, 단계 진입 조건
 │   │   ├── jobs.json
+│   │   ├── stats.json        ← 스탯 시작값, 배율 공식 계수, 여가 활동
 │   │   ├── stocks.json
 │   │   ├── businesses.json
 │   │   ├── characters.json   ← 연애·인물 (V1은 빈 배열)
 │   │   └── events.json
 │   └── ui/                   ← 화면 (DOM). 이식 시 폐기
-│       ├── app.js            ← 렌더 루프, 주 타이머·속도, 모달 매니저(창 열림=정지)
-│       ├── screens/          ← 메인 / 활동 / 주식 / 사업 / 사람 / 설정
-│       └── components/       ← 상단 바, 속도 버튼, 알림 피드, 하단 탭, 모달
+│       ├── app.js            ← 렌더, 다음 달 버튼 → advanceMonth, 모달 매니저
+│       ├── screens/          ← 메인 / 활동 / 주식 / 사업 / 나 / 설정 / 결산
+│       └── components/       ← 상단 바, 다음 달 버튼, 알림 피드, 하단 탭, 모달
 ├── assets/
 │   ├── placeholder/          ← [개발] 회색 박스 임시 아트 (주문서와 같은 파일명)
 │   ├── img/                  ← [사용자] 검수 통과한 최종 아트
@@ -78,8 +80,8 @@ Business_Sim/
 
 ### core ↔ ui 경계
 - `core`의 공개 함수는 전부 `(state, input) → newState` 형태.
-  예: `advanceWeek(state)`, `setActivity(state, activityId)`, `buyStock(state, symbol, qty)`
-- 실시간 진행은 **ui의 타이머가 `advanceWeek`를 주기적으로 호출**하는 것. core에는 시계·타이머·속도 개념이 없다. (속도·일시정지는 ui 상태)
+  예: `advanceMonth(state)`, `setActivity(state, slot, activityId)`, `buyStock(state, symbol, qty)`
+- 턴 진행은 ui의 "다음 달" 버튼이 `advanceMonth`를 한 번 호출하는 것. core에는 시계·타이머 개념이 없다.
 - 화면에 보여줄 메시지(이벤트 발생 등)는 `state.log[]`에 쌓고 ui가 읽어 간다.
 - `ui`는 `core`를 호출만 하고, 수치 계산은 절대 하지 않는다.
 
