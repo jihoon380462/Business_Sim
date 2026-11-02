@@ -6,7 +6,7 @@ export function renderMainPanel(app) {
   const ch = app.data.characters;
   const job = core.findJob(s.activity);
   const bizType = core.businessType(s);
-  const bizText = bizType ? ` · <span class="sub">${bizType.name} ${s.business.open ? '운영 중' : '휴무'}</span>` : '';
+  const bizText = bizType ? `<span class="sub">${bizType.emoji} ${bizType.name} ${s.business.open ? '운영 중' : '휴무'}</span>` : '';
   return `
     <img class="bg" src="${app.asset(ch.background)}" alt="" />
     <img class="char" src="${app.asset(ch.player.genders[s.gender].image)}" alt="" />

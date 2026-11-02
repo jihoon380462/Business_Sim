@@ -1,5 +1,5 @@
 import * as core from '../../core/index.js';
-import { won, amountClass, weekLabel, esc } from '../format.js';
+import { won, man, amountClass, weekLabel, esc } from '../format.js';
 
 /** 결산 리포트 창 (SCR-06). app.ui.popup = { type:'report', report, reopen? } */
 export function render(app) {
@@ -21,7 +21,7 @@ export function render(app) {
   const maxAbs = Math.max(1, ...r.weekly.map((w) => Math.abs(w.net)));
   const bars = r.weekly.map((w) => {
     const h = Math.max(4, Math.round((Math.abs(w.net) / maxAbs) * 70));
-    return `<div class="rep-bar ${w.net < 0 ? 'neg' : ''}"><span class="v num ${amountClass(w.net)}">${won(w.net, { sign: true })}</span><i style="height:${h}px"></i></div>`;
+    return `<div class="rep-bar ${w.net < 0 ? 'neg' : ''}"><span class="v num ${amountClass(w.net)}">${man(w.net)}</span><i style="height:${h}px"></i></div>`;
   });
   const weeks = r.weekly.map((w) => `<span>${core.weekOfYear(w.week)}주</span>`);
   const as = r.assets;
@@ -32,7 +32,7 @@ export function render(app) {
         <thead><tr><th>항목</th><th>${r.weekly.length}주 합계</th><th>주 평균</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <div class="rep-assets">현금 <b class="num">${won(as.cash)}</b> · 부채 <b class="num">${won(as.debt)}</b> · 순자산 <b class="num ${as.net < 0 ? 'expense' : ''}">${won(as.net)}</b></div>
+      <div class="rep-assets"><div><span class="lbl">현금</span><b class="num">${won(as.cash)}</b></div><div><span class="lbl">부채</span><b class="num">${won(as.debt)}</b></div><div><span class="lbl">순자산</span><b class="num ${as.net < 0 ? 'expense' : ''}">${won(as.net)}</b></div></div>
       <h3 class="sec">주별 순이익</h3>
       <div class="rep-bars">${bars.join('')}</div>
       <div class="rep-weeks">${weeks.join('')}</div>

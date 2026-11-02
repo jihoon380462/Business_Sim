@@ -63,10 +63,9 @@ function renderManage(app) {
   const t = core.businessType(s);
   const B = app.data.businesses;
   const lw = b.lastWeek;
-  const isLast = lw && lw.week < s.week; // 정산 전이면 지난주 값
   const kpi = lw
     ? `<div class="kpi card">
-        <div><div class="lbl">${isLast ? '지난주' : '이번 주'} 매출</div><div class="val num ${amountClass(lw.revenue)}">${man(lw.revenue)}</div></div>
+        <div><div class="lbl">지난주 매출</div><div class="val num ${amountClass(lw.revenue)}">${man(lw.revenue)}</div></div>
         <div><div class="lbl">비용</div><div class="val num expense">${man(-(lw.fixed + lw.promo + lw.labor + lw.materials + lw.interest))}</div></div>
         <div><div class="lbl">순익</div><div class="val num ${amountClass(lw.net)}">${man(lw.net)}</div></div>
       </div>`
