@@ -1,8 +1,8 @@
 // 부트 · 게임 루프 · 저장
-import * as D from './data.js?v=1.2.1';
-import * as S from './sim.js?v=1.2.1';
-import { createRenderer } from './render.js?v=1.2.1';
-import { createUI } from './ui.js?v=1.2.1';
+import * as D from './data.js?v=1.3.0';
+import * as S from './sim.js?v=1.3.0';
+import { createRenderer } from './render.js?v=1.3.0';
+import { createUI } from './ui.js?v=1.3.0';
 
 const game = {
   s: null,
@@ -11,7 +11,7 @@ const game = {
   save() { try { localStorage.setItem(D.SAVE_KEY, S.serialize(game.s)); } catch (e) { /* 저장 불가 환경 */ } },
   newGame() {
     game.s = S.createGame((Date.now() ^ (performance.now() * 1000)) | 0);
-    game.ui.sheet = null; game.ui.buildMode = false; game.ui.speed = 1; game.r.scrollY = 0;
+    game.ui.sheet = null; game.ui.buildMode = false; game.ui.speed = 1; game.r.fit();
     game.save();
     game.view.closeSheet();
     game.view.renderAll();

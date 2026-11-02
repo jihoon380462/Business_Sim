@@ -1,6 +1,6 @@
 // 아버지의 공장 — 시뮬레이션 (DOM 없음). 상태는 순수 데이터, tick 이 제자리에서 갱신한다.
-import * as D from './data.js?v=1.2.1';
-import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.2.1';
+import * as D from './data.js?v=1.3.0';
+import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.3.0';
 
 export const DX = [1, 0, -1, 0];
 export const DY = [0, 1, 0, -1];
@@ -50,6 +50,8 @@ export function createGame(seed = Date.now()) {
   refreshCandidates(s);
   s.flags.unlocked = {};
   for (const type of Object.keys(D.UNLOCKS.types)) if (typeUnlocked(s, type)) s.flags.unlocked[type] = true;
+  for (const model of Object.keys(D.UNLOCKS.models)) if (modelUnlocked(s, model)) s.flags.unlocked[model] = true;
+  if (splitUnlocked(s)) s.flags.unlocked.split = true;
   startMonth(s, true);
   s.quest = 0;
   // 첫날부터 고를 주문 두 개
@@ -931,7 +933,7 @@ function questDone(s, id) {
   switch (id) {
     case 'accept': return !!s.flags.acceptedAny;
     case 'split': return ms.filter((m) => m.recipe === 'bracket').length >= 2;
-    case 'staff': return ms.every((m) => !m.recipe || machineDef(m).auto || m.worker) && s.workers.length >= 3;
+    case 'staff': return ms.every((m) => !m.recipe || m.enabled === false || machineDef(m).auto || m.worker) && s.workers.length >= 3;
     case 'ship': return (s.flags.shippedCount || 0) >= 1;
     case 'month': return s.history.length >= 1;
     case 'product': return Object.keys(s.flags.shippedItems || {}).length >= 2;

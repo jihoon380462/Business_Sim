@@ -1,11 +1,11 @@
 // 탑뷰 공장 바닥 렌더 (캔버스). 시뮬 상태를 읽기만 한다.
-import * as D from './data.js?v=1.2.1';
-import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js?v=1.2.1';
+import * as D from './data.js?v=1.3.0';
+import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js?v=1.3.0';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
   const R = {
-    canvas, ctx, T: 40, ox: 0, oy: 0, scrollY: 0, w: 0, h: 0, dpr: 1, t: 0,
+    canvas, ctx, T: 40, ox: 0, oy: 0, scrollY: 0, panX: 0, zoom: 1, w: 0, h: 0, dpr: 1, t: 0,
     sprites: new Map(), spriteT: 0,
     floats: [], smokes: [], shakes: new Map(),
     hover: null, ghost: null,
@@ -21,9 +21,13 @@ export function createRenderer(canvas) {
 
   R.layout = (s) => {
     const pad = 14;
-    const T = Math.floor(Math.min((R.w - pad * 2) / s.floor.cols, 64));
+    const base = Math.min((R.w - pad * 2) / s.floor.cols, 64);
+    const T = Math.max(12, Math.floor(base * R.zoom));
     if (T !== R.T) { R.T = T; R.sprites.clear(); }
-    R.ox = Math.round((R.w - T * s.floor.cols) / 2);
+    const contentW = T * s.floor.cols + pad * 2;
+    R.maxPanX = Math.max(0, contentW - R.w);
+    R.panX = Math.max(0, Math.min(R.maxPanX, R.panX));
+    R.ox = contentW <= R.w ? Math.round((R.w - T * s.floor.cols) / 2) : pad - R.panX;
     const top = R.topInset || 0;
     const avail = R.h - top;
     const contentH = T * s.floor.rows + pad * 2;
@@ -31,6 +35,19 @@ export function createRenderer(canvas) {
     R.scrollY = Math.max(0, Math.min(R.maxScroll, R.scrollY));
     R.oy = top + (contentH < avail ? Math.round((avail - T * s.floor.rows) / 2) : pad - R.scrollY);
   };
+
+  /** (px,py) 화면 지점을 고정한 채로 확대/축소 */
+  R.zoomAt = (s, factor, px, py) => {
+    R.layout(s);
+    const wx = (px - R.ox) / R.T, wy = (py - R.oy) / R.T;
+    R.zoom = Math.max(1, Math.min(3, R.zoom * factor));
+    R.layout(s);
+    R.panX += R.ox + wx * R.T - px;
+    R.scrollY += R.oy + wy * R.T - py;
+    R.layout(s);
+  };
+  R.pan = (dx, dy) => { R.panX -= dx; R.scrollY -= dy; };
+  R.fit = () => { R.zoom = 1; R.panX = 0; R.scrollY = 0; };
 
   R.toTile = (s, px, py) => {
     const x = Math.floor((px - R.ox) / R.T);
@@ -82,7 +99,7 @@ export function createRenderer(canvas) {
   // ---------- 그리기 ----------
   R.draw = (s, dt, ui) => {
     R.t += dt;
-    R.topInset = (s.quest != null && s.quest < D.QUESTS.length ? 52 : 0) + (ui.buildMode ? 44 : 0);
+    R.topInset = ui.buildMode ? 44 : (s.quest != null && s.quest < D.QUESTS.length ? 52 : 0);
     R.layout(s);
     const { T } = R;
     ctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);

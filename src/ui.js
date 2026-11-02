@@ -1,6 +1,6 @@
 // 화면 (DOM): HUD · 주문 띠 · 하단 바 · 시트 · 팝업 · 캔버스 입력
-import * as D from './data.js?v=1.2.1';
-import * as S from './sim.js?v=1.2.1';
+import * as D from './data.js?v=1.3.0';
+import * as S from './sim.js?v=1.3.0';
 
 // ---------- 표기 ----------
 export function man(n, { sign = false } = {}) {
@@ -125,7 +125,7 @@ export function createUI(game) {
     const q = S.currentQuest(s);
     const sig = `${s.quest}|${ui.buildMode}`;
     let p = document.getElementById('quest-pill');
-    if (!q) { if (p) p.remove(); questSig = sig; return; }
+    if (!q || ui.buildMode) { if (p) p.remove(); questSig = sig; return; }
     if (sig === questSig && p) return;
     questSig = sig;
     if (!p) { p = document.createElement('button'); p.id = 'quest-pill'; p.className = 'quest-pill'; p.dataset.a = 'quest'; document.querySelector('.stage').appendChild(p); }
@@ -515,7 +515,7 @@ export function createUI(game) {
       const r = p.rec;
       html = `<div class="pp-hero"><div class="i">${r.net >= 0 ? '📗' : '📕'}</div><h2>${esc(r.label)} 결산</h2><p class="${r.net >= 0 ? 'pos' : 'neg'}" style="font-family:'Do Hyeon';font-size:28px;margin:0">${man(r.net, { sign: true })}</p></div>
         <div class="pp-body">${monthTable(r, true)}
-          <div class="card"><div class="kv"><span>현금</span><b class="dh">${man(r.cash)}</b></div><div class="kv"><span>빚</span><b class="dh">${man(r.loan)}</b></div><div class="kv"><span>다음 달 들어올 외상</span><b class="dh">${man(r.receivable)}</b></div></div>
+          <div class="muted" style="text-align:center">현금 <b>${man(r.cash)}</b> · 빚 <b>${man(r.loan)}</b> · 들어올 외상 <b>${man(r.receivable)}</b></div>
           <button class="btn pri full" data-a="pp-ok">다음 달로</button></div>`;
     } else if (p.type === 'news') {
       const n = p.news;
@@ -562,6 +562,7 @@ export function createUI(game) {
     tool: (v) => { const p = PALETTE[Number(v)]; ui.tool = { kind: p.kind, model: p.model }; renderBar(); renderBuildHint(); },
     dir: () => { ui.dir = (ui.dir + 1) % 4; renderBuildHint(); },
     quest: () => openSheet('quest'),
+    zoom: (v) => { const r = game.r; if (v === 'fit') r.fit(); else r.zoomAt(game.s, v === 'in' ? 1.35 : 1 / 1.35, r.w / 2, r.h / 2); },
     'quest-go': (v) => {
       closeSheet();
       if (v === 'build-split') { ui.buildMode = true; const i = PALETTE.findIndex((p) => p.kind === 'split'); ui.tool = { kind: 'split' }; renderBar(); renderBuildHint(); renderQuest(); return i; }
@@ -615,13 +616,27 @@ export function createUI(game) {
 
   // ============================================================ 캔버스 입력
   let down = null;
+  const pointers = new Map();
+  let pinch = null;
+  const mid = () => { const ps = [...pointers.values()]; return { x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2, d: Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y) }; };
   el.canvas.addEventListener('pointerdown', (e) => {
-    el.canvas.setPointerCapture(e.pointerId);
+    try { el.canvas.setPointerCapture(e.pointerId); } catch { /* 합성 이벤트 등 */ }
     const p = pos(e);
-    down = { x: p.x, y: p.y, sy: game.r.scrollY, moved: false, last: game.r.toTile(game.s, p.x, p.y), painting: ui.buildMode && ui.tool?.kind === 'belt', painted: false };
+    pointers.set(e.pointerId, p);
+    if (pointers.size === 2) { pinch = mid(); down = null; return; } // 두 손가락: 확대·이동 (그리기 취소)
+    if (pointers.size > 2) return;
+    down = { x: p.x, y: p.y, sy: game.r.scrollY, sx: game.r.panX, moved: false, last: game.r.toTile(game.s, p.x, p.y), painting: ui.buildMode && ui.tool?.kind === 'belt', painted: false };
   });
   el.canvas.addEventListener('pointermove', (e) => {
     const p = pos(e);
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, p);
+    if (pinch && pointers.size === 2) {
+      const m = mid();
+      if (pinch.d > 0 && m.d > 0) game.r.zoomAt(game.s, m.d / pinch.d, m.x, m.y);
+      game.r.pan(m.x - pinch.x, m.y - pinch.y);
+      pinch = m;
+      return;
+    }
     if (ui.buildMode) updateGhost(p);
     if (!down) return;
     const dist = Math.hypot(p.x - down.x, p.y - down.y);
@@ -633,16 +648,31 @@ export function createUI(game) {
         down.last = t; down.painted = true;
       }
     } else if (down.moved) {
+      game.r.panX = down.sx - (p.x - down.x);
       game.r.scrollY = down.sy - (p.y - down.y);
     }
   });
-  el.canvas.addEventListener('pointerup', (e) => {
+  const endPointer = (e, cancel) => {
     const p = pos(e);
-    if (down && !down.moved && !down.painted) tap(p);
+    pointers.delete(e.pointerId);
+    if (pinch) { if (pointers.size < 2) pinch = null; down = null; return; }
+    if (!cancel && down && !down.moved && !down.painted) tap(p);
     down = null;
-  });
-  el.canvas.addEventListener('pointercancel', () => { down = null; });
-  el.canvas.addEventListener('wheel', (e) => { game.r.scrollY += e.deltaY; e.preventDefault(); }, { passive: false });
+  };
+  el.canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+  el.canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+  el.canvas.addEventListener('wheel', (e) => {
+    const p = pos(e);
+    if (e.ctrlKey) game.r.zoomAt(game.s, e.deltaY < 0 ? 1.1 : 1 / 1.1, p.x, p.y);
+    else game.r.pan(-e.deltaX, -e.deltaY);
+    e.preventDefault();
+  }, { passive: false });
+
+  // 확대 버튼
+  const zoomBox = document.createElement('div');
+  zoomBox.className = 'zoom-box';
+  zoomBox.innerHTML = '<button data-a="zoom" data-v="in" aria-label="확대">＋</button><button data-a="zoom" data-v="out" aria-label="축소">－</button><button data-a="zoom" data-v="fit" aria-label="전체 보기">⤢</button>';
+  document.querySelector('.stage').appendChild(zoomBox);
 
   function pos(e) { const r = el.canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
 

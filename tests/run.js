@@ -238,6 +238,11 @@ test('시작 라인은 용접이 병목 (프레스보다 느림)', () => {
   const s = fresh(1);
   ok(S.machinePerMin(s, S.tile(s, 5, 2)) < S.machinePerMin(s, S.tile(s, 2, 2)) * 0.8);
 });
+test('새 게임 첫날 밤에 이미 열린 설비를 "새로 해금"이라고 알리지 않는다', () => {
+  const s = fresh(1);
+  runDays(s, 1);
+  ok(!s.log.some((l) => l.text.includes('분배기')), 'no splitter unlock toast');
+});
 test('분당 처리량 표기 = 60 × 속도 / 레시피 시간', () => {
   const s = fresh(1);
   const m = S.tile(s, 5, 2);

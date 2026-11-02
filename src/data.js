@@ -1,6 +1,6 @@
 // 아버지의 공장 — 밸런스 데이터. 숫자는 여기서만 바꾼다.
 
-export const VERSION = '1.2.1';
+export const VERSION = '1.3.0';
 export const SAVE_KEY = 'fathers_factory_save_v1';
 
 // ---------- 시간 ----------
