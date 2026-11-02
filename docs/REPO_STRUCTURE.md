@@ -23,7 +23,7 @@ Business_Sim/
 │   ├── main.js               ← core와 ui를 연결하는 유일한 지점
 │   ├── core/                 ← 게임 로직 (순수 JS, 이식 대상)
 │   │   ├── state.js          ← 상태 정의, 초기값, 직렬화(저장/불러오기)
-│   │   ├── time.js           ← 주 단위 턴 진행, N년차 M주, 계절
+│   │   ├── time.js           ← advanceWeek, N년차 M주, 계절 (타이머는 ui 담당)
 │   │   ├── economy.js        ← 자금, 수입/지출, 생활비, 대출, 신용
 │   │   ├── jobs.js           ← 알바
 │   │   ├── stocks.js         ← 주식 시장 시뮬레이션
@@ -39,9 +39,9 @@ Business_Sim/
 │   │   ├── characters.json   ← 연애·인물 (V1은 빈 배열)
 │   │   └── events.json
 │   └── ui/                   ← 화면 (DOM). 이식 시 폐기
-│       ├── app.js            ← 화면 전환, 렌더 루프
+│       ├── app.js            ← 렌더 루프, 주 타이머·속도, 모달 매니저(창 열림=정지)
 │       ├── screens/          ← 메인 / 활동 / 주식 / 사업 / 사람 / 설정
-│       └── components/       ← 상단 바, 하단 탭, 다음 주 버튼, 모달
+│       └── components/       ← 상단 바, 속도 버튼, 알림 피드, 하단 탭, 모달
 ├── assets/
 │   ├── placeholder/          ← [개발] 회색 박스 임시 아트 (주문서와 같은 파일명)
 │   ├── img/                  ← [사용자] 검수 통과한 최종 아트
@@ -76,7 +76,8 @@ Business_Sim/
 
 ### core ↔ ui 경계
 - `core`의 공개 함수는 전부 `(state, input) → newState` 형태.
-  예: `advanceWeek(state)`, `takeJob(state, jobId)`, `buyStock(state, symbol, qty)`
+  예: `advanceWeek(state)`, `setActivity(state, activityId)`, `buyStock(state, symbol, qty)`
+- 실시간 진행은 **ui의 타이머가 `advanceWeek`를 주기적으로 호출**하는 것. core에는 시계·타이머·속도 개념이 없다. (속도·일시정지는 ui 상태)
 - 화면에 보여줄 메시지(이벤트 발생 등)는 `state.log[]`에 쌓고 ui가 읽어 간다.
 - `ui`는 `core`를 호출만 하고, 수치 계산은 절대 하지 않는다.
 
