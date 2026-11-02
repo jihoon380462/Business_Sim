@@ -3,18 +3,26 @@
   "saveKey": "business_sim_save",
   "useArt": false,
   "weekDurationMs": 4000,
-  "speeds": [1, 2],
+  "speeds": [
+    1,
+    2
+  ],
   "weeksPerYear": 52,
   "weeksPerSeason": 13,
-  "seasons": ["spring", "summer", "autumn", "winter"],
+  "seasons": [
+    "spring",
+    "summer",
+    "autumn",
+    "winter"
+  ],
   "startMoney": 1000000,
-  "livingCost": 120000,
+  "livingCost": 150000,
   "startEnergy": 100,
   "maxEnergy": 100,
   "lowEnergyThreshold": 30,
   "forcedJobWhenBroke": "convenience",
   "loan": {
-    "limit": 5000000,
+    "limit": 8000000,
     "weeklyInterestRate": 0.01,
     "requiresBusiness": true,
     "step": 500000

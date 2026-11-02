@@ -29,7 +29,14 @@ export function rollEvents(state) {
       const sym = pick(state, junk);
       state.events.delisting = { symbol: sym.id, weeksLeft: dl.warningWeeks };
       state.events.flags.delistWarned = true;
-      pushLog(state, { emoji: '⚠️', title: `${sym.name} 상장폐지 심사 통보 (${dl.warningWeeks}주 뒤)` });
+      // 예고 주에 즉시 급락. 이번 주는 매도 가능, 다음 주 0원·소멸.
+      const drop = dl.warningDrop ?? 0;
+      if (drop > 0) {
+        state.stocks.prices[sym.id] = Math.max(1, Math.round(state.stocks.prices[sym.id] * (1 - drop)));
+        const h = state.stocks.history[sym.id];
+        h[h.length - 1] = state.stocks.prices[sym.id];
+      }
+      pushLog(state, { emoji: '⚠️', title: `${sym.name} 상장폐지 심사 통보 (${dl.warningWeeks}주 뒤)${drop > 0 ? ` — 주가 -${Math.round(drop * 100)}%` : ''}` });
       fired += 1;
     }
   }

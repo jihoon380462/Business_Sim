@@ -15,8 +15,8 @@
       "id": "delivery",
       "name": "택배 상하차",
       "shortName": "택배 상하차",
-      "wage": 350000,
-      "energyDelta": -35,
+      "wage": 450000,
+      "energyDelta": -30,
       "icon": "icon_job_delivery.png",
       "emoji": "📦"
     },
@@ -29,7 +29,7 @@
       "icon": "icon_job_cafe.png",
       "emoji": "☕",
       "tip": {
-        "chance": 0.25,
+        "chance": 0.2,
         "amount": 30000
       }
     },
@@ -38,7 +38,7 @@
       "name": "휴식",
       "shortName": "휴식",
       "wage": 0,
-      "energyDelta": 30,
+      "energyDelta": 35,
       "icon": "icon_rest.png",
       "emoji": "🌙"
     }

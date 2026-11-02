@@ -74,8 +74,10 @@ test('로그는 logMax 이하', () => {
 console.log('알바·체력');
 test('체력 0 → 자동 휴식, 휴식은 체력 회복', () => {
   let s = core.setActivity(core.createInitialState(2), { activityId: 'delivery' });
-  s = runWeeks(s, 3, noPending);
-  eq(s.activity, 'rest', 'after 3 weeks of delivery');
+  const drain = -data.jobs.activities.find((a) => a.id === 'delivery').energyDelta;
+  const weeks = Math.floor(data.config.startEnergy / drain) + 1;
+  s = runWeeks(s, weeks, noPending);
+  eq(s.activity, 'rest', `after ${weeks} weeks of delivery`);
   const e = s.energy;
   s = core.advanceWeek(s);
   ok(s.energy > e, 'rest recovers');
@@ -151,6 +153,29 @@ test('상장폐지: 예고 후 가격 0, 보유분 소멸, 매매 불가', () =>
   eq(s.stocks.prices.byulbit, 0);
   ok(!s.stocks.holdings.byulbit);
   eq(core.buyStock(s, { symbol: 'byulbit', qty: 1 }), s);
+});
+
+test('상장폐지 예고 주: 즉시 -40%, 매도 가능', () => {
+  const dl = data.events.delisting;
+  const sym = data.stocks.symbols.find((x) => x.type === 'junk');
+  let found = false;
+  for (let seed = 1; seed <= 50 && !found; seed++) {
+    let s = core.buyStock(core.createInitialState(seed), { symbol: sym.id, qty: 5 });
+    s.week = dl.minWeek;
+    for (let i = 0; i < 80 && !found; i++) {
+      const prevHold = s.stocks.holdings[sym.id]?.qty || 0;
+      s = core.advanceWeek(s); s = noPending(s);
+      if (s.events.delisting) {
+        found = true;
+        const r = s.stocks.prices[sym.id] / s.stocks.prevPrices[sym.id];
+        ok(r <= (1 + sym.weeklyVolatility + Math.abs(sym.drift)) * (1 - dl.warningDrop) + 0.001, `drop ratio ${r}`);
+        ok(!core.isDelisted(s, sym.id) && prevHold === 5, 'still tradable on warning week');
+        const sold = core.sellStock(s, { symbol: sym.id, qty: 5 });
+        ok(!sold.stocks.holdings[sym.id], 'sold');
+      }
+    }
+  }
+  ok(found, 'delisting warning never fired in 50 seeds');
 });
 
 console.log('대출');

@@ -7,14 +7,35 @@
   "reputationRevenueBase": 0.6,
   "reputationRevenueRange": 0.8,
   "priceOptions": {
-    "low":  { "label": "낮음", "revenueMult": 0.85, "reputationDelta": 1 },
-    "mid":  { "label": "보통", "revenueMult": 1.0,  "reputationDelta": 0 },
-    "high": { "label": "높음", "revenueMult": 1.2,  "reputationDelta": -2 }
+    "low": {
+      "label": "낮음",
+      "revenueMult": 0.85,
+      "reputationDelta": 1
+    },
+    "mid": {
+      "label": "보통",
+      "revenueMult": 1.0,
+      "reputationDelta": 0
+    },
+    "high": {
+      "label": "높음",
+      "revenueMult": 1.2,
+      "reputationDelta": -2
+    }
   },
   "ingredientGrades": {
-    "1": { "materialRate": 0.20, "reputationDelta": -1 },
-    "2": { "materialRate": 0.25, "reputationDelta": 1 },
-    "3": { "materialRate": 0.30, "reputationDelta": 2 }
+    "1": {
+      "materialRate": 0.2,
+      "reputationDelta": -1
+    },
+    "2": {
+      "materialRate": 0.25,
+      "reputationDelta": 1
+    },
+    "3": {
+      "materialRate": 0.3,
+      "reputationDelta": 2
+    }
   },
   "promoReputationDelta": 2,
   "closedEnergyRecovery": 10,
@@ -26,14 +47,24 @@
       "icon": "icon_biz_stall.png",
       "emoji": "🐟",
       "openCost": 3000000,
-      "revenueMin": 400000,
-      "revenueMax": 600000,
+      "revenueMin": 500000,
+      "revenueMax": 750000,
       "fixedCost": 150000,
       "promoCost": 50000,
-      "upgradeCosts": { "2": 300000, "3": 600000 },
-      "seasonMult": { "spring": 1.0, "summer": 0.8, "autumn": 1.1, "winter": 1.3 },
+      "upgradeCosts": {
+        "2": 300000,
+        "3": 600000
+      },
+      "seasonMult": {
+        "spring": 1.0,
+        "summer": 0.8,
+        "autumn": 1.1,
+        "winter": 1.3
+      },
       "staff": null,
-      "unlock": { "requiresBusiness": null }
+      "unlock": {
+        "requiresBusiness": null
+      }
     },
     {
       "id": "snackbar",
@@ -41,15 +72,30 @@
       "subtitle": "작은 가게",
       "icon": "icon_biz_snackbar.png",
       "emoji": "🏪",
-      "openCost": 25000000,
+      "openCost": 18000000,
       "revenueMin": 1200000,
       "revenueMax": 1800000,
       "fixedCost": 700000,
       "promoCost": 150000,
-      "upgradeCosts": { "2": 1500000, "3": 3000000 },
-      "seasonMult": { "spring": 1.0, "summer": 1.0, "autumn": 1.0, "winter": 1.0 },
-      "staff": { "wage": 300000, "revenueMult": 1.25, "name": "김직원", "avatar": "avatar_staff.png" },
-      "unlock": { "requiresBusiness": "stall" }
+      "upgradeCosts": {
+        "2": 1500000,
+        "3": 3000000
+      },
+      "seasonMult": {
+        "spring": 1.0,
+        "summer": 1.0,
+        "autumn": 1.0,
+        "winter": 1.0
+      },
+      "staff": {
+        "wage": 300000,
+        "revenueMult": 1.25,
+        "name": "김직원",
+        "avatar": "avatar_staff.png"
+      },
+      "unlock": {
+        "requiresBusiness": "stall"
+      }
     }
   ],
   "goalBusinessType": "snackbar"
