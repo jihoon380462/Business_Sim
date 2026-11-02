@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "saveKey": "business_sim_save",
+  "useArt": false,
+  "weekDurationMs": 4000,
+  "speeds": [1, 2],
+  "weeksPerYear": 52,
+  "weeksPerSeason": 13,
+  "seasons": ["spring", "summer", "autumn", "winter"],
+  "startMoney": 1000000,
+  "livingCost": 120000,
+  "startEnergy": 100,
+  "maxEnergy": 100,
+  "lowEnergyThreshold": 30,
+  "forcedJobWhenBroke": "convenience",
+  "loan": {
+    "limit": 5000000,
+    "weeklyInterestRate": 0.01,
+    "step": 500000
+  },
+  "stockFeeRate": 0.005,
+  "bigMoneyThreshold": 500000,
+  "feedVisible": 3,
+  "logMax": 50,
+  "goal": {
+    "profitStreakWeeks": 4
+  },
+  "defaultGender": "m",
+  "gaugeSegments": 10
+}

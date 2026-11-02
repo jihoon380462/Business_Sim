@@ -1,0 +1,46 @@
+{
+  "historyLength": 8,
+  "newsShockRate": 0.3,
+  "symbols": [
+    {
+      "id": "hanbit",
+      "name": "한빛식품",
+      "type": "stable",
+      "startPrice": 12500,
+      "weeklyVolatility": 0.05,
+      "drift": 0.004
+    },
+    {
+      "id": "narae",
+      "name": "나래전자",
+      "type": "stable",
+      "startPrice": 68000,
+      "weeklyVolatility": 0.06,
+      "drift": 0.004
+    },
+    {
+      "id": "daeyang",
+      "name": "대양건설",
+      "type": "volatile",
+      "startPrice": 24300,
+      "weeklyVolatility": 0.11,
+      "drift": 0.003
+    },
+    {
+      "id": "mir",
+      "name": "미르바이오",
+      "type": "volatile",
+      "startPrice": 35800,
+      "weeklyVolatility": 0.14,
+      "drift": 0.003
+    },
+    {
+      "id": "byulbit",
+      "name": "별빛엔터",
+      "type": "junk",
+      "startPrice": 18900,
+      "weeklyVolatility": 0.15,
+      "drift": -0.004
+    }
+  ]
+}

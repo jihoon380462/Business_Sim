@@ -1,0 +1,10 @@
+{
+  "player": {
+    "genders": {
+      "m": { "image": "char_main_m.png", "label": "남" },
+      "f": { "image": "char_main_f.png", "label": "여" }
+    }
+  },
+  "background": "bg_street.png",
+  "characters": []
+}

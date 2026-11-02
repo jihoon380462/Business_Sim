@@ -1,0 +1,46 @@
+{
+  "defaultActivity": "convenience",
+  "restId": "rest",
+  "activities": [
+    {
+      "id": "convenience",
+      "name": "편의점 알바",
+      "shortName": "편의점 알바",
+      "wage": 200000,
+      "energyDelta": -15,
+      "icon": "icon_job_convenience.png",
+      "emoji": "🛍️"
+    },
+    {
+      "id": "delivery",
+      "name": "택배 상하차",
+      "shortName": "택배 상하차",
+      "wage": 350000,
+      "energyDelta": -35,
+      "icon": "icon_job_delivery.png",
+      "emoji": "📦"
+    },
+    {
+      "id": "cafe",
+      "name": "카페 알바",
+      "shortName": "카페 알바",
+      "wage": 250000,
+      "energyDelta": -10,
+      "icon": "icon_job_cafe.png",
+      "emoji": "☕",
+      "tip": {
+        "chance": 0.25,
+        "amount": 30000
+      }
+    },
+    {
+      "id": "rest",
+      "name": "휴식",
+      "shortName": "휴식",
+      "wage": 0,
+      "energyDelta": 30,
+      "icon": "icon_rest.png",
+      "emoji": "🌙"
+    }
+  ]
+}

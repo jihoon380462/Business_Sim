@@ -1,0 +1,109 @@
+{
+  "maxPerWeek": 1,
+  "rumor": {
+    "cost": 100000,
+    "delayMin": 1,
+    "delayMax": 2,
+    "targetTypes": ["volatile", "junk"],
+    "shockMin": 0.25,
+    "shockMax": 0.35
+  },
+  "delisting": {
+    "symbolType": "junk",
+    "warningWeeks": 1,
+    "minWeek": 20,
+    "weeklyChance": 0.03
+  },
+  "events": [
+    {
+      "id": "hospital",
+      "category": "life",
+      "kind": "notice",
+      "title": "병원비",
+      "text": "갑자기 몸이 아파 병원에 다녀왔다.",
+      "emoji": "🏥",
+      "chance": 0.03,
+      "cooldown": 12,
+      "money": -300000
+    },
+    {
+      "id": "wedding",
+      "category": "life",
+      "kind": "notice",
+      "title": "친구 결혼 축의금",
+      "text": "친구 결혼식에 축의금을 냈다.",
+      "emoji": "💍",
+      "chance": 0.04,
+      "cooldown": 16,
+      "money": -100000
+    },
+    {
+      "id": "secondhand",
+      "category": "life",
+      "kind": "notice",
+      "title": "중고 거래 득템",
+      "text": "안 쓰는 물건을 생각보다 비싸게 팔았다.",
+      "emoji": "📱",
+      "chance": 0.04,
+      "cooldown": 10,
+      "money": 150000
+    },
+    {
+      "id": "rumor_good",
+      "category": "stock",
+      "kind": "choice",
+      "title": "소문",
+      "emoji": "💬",
+      "chance": 0.06,
+      "cooldown": 6,
+      "direction": 1,
+      "text": "{name}이(가) 큰 건을 앞두고 있다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다.",
+      "choices": [
+        { "id": "pay", "label": "10만원 내고 듣는다" },
+        { "id": "ignore", "label": "무시한다" }
+      ]
+    },
+    {
+      "id": "rumor_bad",
+      "category": "stock",
+      "kind": "choice",
+      "title": "소문",
+      "emoji": "💬",
+      "chance": 0.05,
+      "cooldown": 6,
+      "direction": -1,
+      "text": "{name} 쪽에서 뭔가 심상치 않다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다.",
+      "choices": [
+        { "id": "pay", "label": "10만원 내고 듣는다" },
+        { "id": "ignore", "label": "무시한다" }
+      ]
+    },
+    {
+      "id": "regular",
+      "category": "business",
+      "kind": "notice",
+      "title": "단골 생김",
+      "text": "가게에 단골이 생겼다.",
+      "emoji": "🙂",
+      "chance": 0.06,
+      "cooldown": 8,
+      "requiresBusiness": true,
+      "reputation": 10
+    },
+    {
+      "id": "hygiene",
+      "category": "business",
+      "kind": "notice",
+      "title": "위생 점검",
+      "text": "위생 점검이 나왔다.",
+      "emoji": "🧾",
+      "chance": 0.04,
+      "cooldown": 12,
+      "requiresBusiness": true,
+      "fineIfGradeBelow": 2,
+      "fine": { "stall": 200000, "snackbar": 500000 },
+      "passText": "위생 점검을 무사히 통과했다.",
+      "failText": "재료 등급이 낮아 벌금을 물었다."
+    }
+  ]
+}
