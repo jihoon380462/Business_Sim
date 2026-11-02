@@ -1,7 +1,7 @@
 // core 와 ui 를 연결하는 유일한 지점. 데이터 JSON 을 읽어 core 에 주입하고 앱을 띄운다.
 import { createApp } from './ui/app.js';
 
-const FILES = ['config', 'jobs', 'stocks', 'businesses', 'events', 'characters'];
+const FILES = ['config', 'stats', 'jobs', 'stocks', 'businesses', 'events', 'characters'];
 
 async function loadData() {
   const entries = await Promise.all(

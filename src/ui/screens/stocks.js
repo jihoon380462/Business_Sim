@@ -26,7 +26,7 @@ export function render(app) {
   const rows = app.data.stocks.symbols.map((sym) => {
     const dead = core.isDelisted(s, sym.id);
     const price = s.stocks.prices[sym.id];
-    const chg = core.weeklyChangePct(s, sym.id);
+    const chg = core.monthlyChangePct(s, sym.id);
     const hist = s.stocks.history[sym.id];
     const up = hist[hist.length - 1] >= hist[0];
     const open = sc.stock === sym.id && !dead;
@@ -53,7 +53,7 @@ export function render(app) {
             <button class="btn primary" data-action="stk.buy" ${qty > maxBuy ? 'disabled' : ''}>매수 ${won(buy.total)}</button>
             <button class="btn ghost" data-action="stk.sell" ${held < qty ? 'disabled' : ''}>매도 ${won(sell.total)}</button>
           </div>
-          <div class="hint">수수료 ${(app.data.config.stockFeeRate * 100).toFixed(1)}% 포함 · 창을 닫아야 가격이 움직입니다</div>
+          <div class="hint">수수료 ${(app.data.config.stockFeeRate * 100).toFixed(1)}% 포함 · 가격은 매달 바뀝니다</div>
         </div>`;
     }
     return `

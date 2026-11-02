@@ -1,47 +1,42 @@
-// 주식 시장 시뮬레이션 · 매매.
+// 주식 시장 시뮬레이션 (월 단위) · 매매.
 import { D, findStock } from './data.js';
-import { clone, pushLog } from './state.js';
+import { clone, pushLog, addNotice, addExpense } from './state.js';
 import { randRange } from './rng.js';
 
 export function isDelisted(state, id) {
   return state.stocks.delisted.includes(id);
 }
 
-/** 매주 가격 변동 + 예정된 뉴스(소문 결과)·상장폐지 적용 */
+/** 매달 가격 변동 + 예정된 뉴스(소문 결과)·상장폐지 적용 */
 export function tickStocks(state) {
   const S = state.stocks;
   S.prevPrices = { ...S.prices };
   for (const sym of D.stocks.symbols) {
     if (isDelisted(state, sym.id)) continue;
-    const change = randRange(state, -sym.weeklyVolatility, sym.weeklyVolatility) + sym.drift;
-    let price = Math.max(100, Math.round(S.prices[sym.id] * (1 + change)));
-    S.prices[sym.id] = price;
+    const change = randRange(state, -sym.monthlyVolatility, sym.monthlyVolatility) + sym.drift;
+    S.prices[sym.id] = Math.max(100, Math.round(S.prices[sym.id] * (1 + change)));
   }
 
-  // 소문 → 뉴스
   const rumor = state.events.rumor;
   if (rumor) {
-    rumor.weeksLeft -= 1;
-    if (rumor.weeksLeft <= 0) {
+    rumor.monthsLeft -= 1;
+    if (rumor.monthsLeft <= 0) {
       const sym = findStock(rumor.symbol);
       if (sym && !isDelisted(state, sym.id)) {
-        const mult = 1 + rumor.direction * rumor.shock;
-        S.prices[sym.id] = Math.max(100, Math.round(S.prices[sym.id] * mult));
+        S.prices[sym.id] = Math.max(100, Math.round(S.prices[sym.id] * (1 + rumor.direction * rumor.shock)));
         const pct = Math.round(rumor.shock * 100);
-        pushLog(state, {
-          emoji: rumor.direction > 0 ? '📈' : '📉',
-          title: rumor.direction > 0 ? `뉴스: ${sym.name} 호재, +${pct}%` : `뉴스: ${sym.name} 악재, -${pct}%`,
-        });
+        const text = rumor.direction > 0 ? `뉴스: ${sym.name} 호재, +${pct}%` : `뉴스: ${sym.name} 악재, -${pct}%`;
+        pushLog(state, { emoji: rumor.direction > 0 ? '📈' : '📉', title: text });
+        addNotice(state, rumor.direction > 0 ? '📈' : '📉', text);
       }
       state.events.rumor = null;
     }
   }
 
-  // 상장폐지 예고 → 실행
   const dl = state.events.delisting;
   if (dl) {
-    dl.weeksLeft -= 1;
-    if (dl.weeksLeft <= 0) {
+    dl.monthsLeft -= 1;
+    if (dl.monthsLeft <= 0) {
       const sym = findStock(dl.symbol);
       if (sym && !isDelisted(state, sym.id)) {
         S.delisted.push(sym.id);
@@ -50,6 +45,7 @@ export function tickStocks(state) {
         const lost = h ? h.qty * h.avgCost : 0;
         delete S.holdings[sym.id];
         pushLog(state, { emoji: '💀', title: `${sym.name} 상장폐지`, amount: lost > 0 ? -lost : null, kind: lost > 0 ? 'expense' : 'info' });
+        addNotice(state, '💀', `${sym.name} 상장폐지${lost > 0 ? ` — 보유분 소멸 (매입가 ${Math.round(lost / 10000)}만)` : ''}`);
       }
       state.events.delisting = null;
     }
@@ -116,19 +112,16 @@ export function sellStock(input, { symbol, qty }) {
   return state;
 }
 
-/** 보유 평가액과 매입가 대비 수익률 */
 export function portfolio(state) {
-  let value = 0;
-  let cost = 0;
+  let value = 0, cost = 0;
   for (const [id, h] of Object.entries(state.stocks.holdings)) {
     value += h.qty * (state.stocks.prices[id] || 0);
     cost += h.qty * h.avgCost;
   }
-  const pct = cost > 0 ? (value - cost) / cost : 0;
-  return { value, cost, pct };
+  return { value, cost, pct: cost > 0 ? (value - cost) / cost : 0 };
 }
 
-export function weeklyChangePct(state, id) {
+export function monthlyChangePct(state, id) {
   const prev = state.stocks.prevPrices[id];
   const cur = state.stocks.prices[id];
   if (!prev) return 0;

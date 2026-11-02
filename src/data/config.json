@@ -1,39 +1,28 @@
 {
-  "version": 1,
+  "version": 2,
   "saveKey": "business_sim_save",
   "useArt": false,
-  "weekDurationMs": 4000,
-  "speeds": [
-    1,
-    2
-  ],
-  "weeksPerYear": 52,
-  "weeksPerSeason": 13,
-  "seasons": [
-    "spring",
-    "summer",
-    "autumn",
-    "winter"
-  ],
+  "monthsPerYear": 12,
+  "seasonByMonth": {
+    "1": "winter", "2": "winter", "3": "spring", "4": "spring", "5": "spring",
+    "6": "summer", "7": "summer", "8": "summer", "9": "autumn", "10": "autumn", "11": "autumn", "12": "winter"
+  },
+  "startAge": 20,
   "startMoney": 1000000,
-  "livingCost": 150000,
-  "startEnergy": 100,
-  "maxEnergy": 100,
-  "lowEnergyThreshold": 30,
+  "livingCost": 600000,
   "forcedJobWhenBroke": "convenience",
   "loan": {
     "limit": 8000000,
-    "weeklyInterestRate": 0.01,
+    "monthlyInterestRate": 0.025,
     "requiresBusiness": true,
     "step": 500000
   },
   "stockFeeRate": 0.005,
-  "bigMoneyThreshold": 500000,
+  "bigMoneyThreshold": 1000000,
   "feedVisible": 3,
   "logMax": 50,
   "goal": {
-    "profitStreakWeeks": 4
+    "profitStreakMonths": 3
   },
-  "defaultGender": "m",
-  "gaugeSegments": 10
+  "defaultGender": "m"
 }

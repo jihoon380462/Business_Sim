@@ -1,20 +1,23 @@
-// 주차 ↔ 년차·계절 변환 (순수 계산)
+// 턴(절대 개월 수) ↔ 년차·월·계절 변환 (순수 계산). turn 은 1부터.
 import { D } from './data.js';
 
-export function yearOf(week) {
-  return Math.floor((week - 1) / D.config.weeksPerYear) + 1;
+export function yearOf(turn) {
+  return Math.floor((turn - 1) / D.config.monthsPerYear) + 1;
 }
 
-export function weekOfYear(week) {
-  return ((week - 1) % D.config.weeksPerYear) + 1;
+export function monthOf(turn) {
+  return ((turn - 1) % D.config.monthsPerYear) + 1;
 }
 
-export function seasonOf(week) {
-  const idx = Math.floor((weekOfYear(week) - 1) / D.config.weeksPerSeason) % D.config.seasons.length;
-  return D.config.seasons[idx];
+export function seasonOf(turn) {
+  return D.config.seasonByMonth[String(monthOf(turn))];
 }
 
-/** "3년차 17주" */
-export function weekLabel(week) {
-  return `${yearOf(week)}년차 ${weekOfYear(week)}주`;
+/** "3년차 5월" */
+export function turnLabel(turn) {
+  return `${yearOf(turn)}년차 ${monthOf(turn)}월`;
+}
+
+export function ageAt(turn) {
+  return D.config.startAge + yearOf(turn) - 1;
 }

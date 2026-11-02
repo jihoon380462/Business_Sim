@@ -15,6 +15,7 @@ export function getData() {
 
 export const D = {
   get config() { return getData().config; },
+  get stats() { return getData().stats; },
   get jobs() { return getData().jobs; },
   get stocks() { return getData().stocks; },
   get businesses() { return getData().businesses; },
@@ -22,8 +23,12 @@ export const D = {
   get characters() { return getData().characters; },
 };
 
-export function findJob(id) {
+export function findActivity(id) {
   return D.jobs.activities.find((a) => a.id === id);
+}
+
+export function activitiesBySlot(slot) {
+  return D.jobs.activities.filter((a) => a.slot === slot && !a.hidden);
 }
 
 export function findStock(id) {

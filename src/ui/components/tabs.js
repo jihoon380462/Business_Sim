@@ -2,7 +2,7 @@ const TABS = [
   { id: 'activity', ico: '🏃', label: '활동' },
   { id: 'stocks', ico: '📊', label: '주식' },
   { id: 'business', ico: '🏪', label: '사업' },
-  { id: 'people', ico: '👥', label: '사람' },
+  { id: 'me', ico: '🧍', label: '나' },
   { id: 'settings', ico: '⚙️', label: '설정' },
 ];
 

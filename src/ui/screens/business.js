@@ -21,7 +21,7 @@ function loanCard(app) {
       ${unlocked ? '' : '<div class="hint">사업자 대출 — 노점 개업 후 이용 가능</div>'}
       <div class="row">
         <div class="grow"><div class="muted">대출 잔액 / 한도</div><div class="amt num ${s.loan.principal > 0 ? 'expense' : ''}">${won(s.loan.principal)} <span class="muted">/ ${won(L.limit)}</span></div></div>
-        <div class="muted">주 이자 ${(L.weeklyInterestRate * 100).toFixed(1)}%</div>
+        <div class="muted" style="text-align:right">월 이자 ${(core.effectiveLoanRate(s) * 100).toFixed(2)}%<br /><small>기본 ${(L.monthlyInterestRate * 100).toFixed(1)}% · 화술 할인</small></div>
       </div>
       <div class="btns">
         <button class="btn sm primary" data-action="biz.borrow" ${canBorrow ? '' : 'disabled'}>${man(Math.min(step, avail) || step, { sign: false })} 빌리기</button>
@@ -44,7 +44,7 @@ function renderOpen(app) {
         <div class="grow">
           <div class="biz-name">${esc(t.name)}</div>
           <div class="biz-stat">💵 개업비<b>${man(t.openCost, { sign: false })}</b></div>
-          ${locked ? '' : `<div class="biz-stat">📊 예상 주매출<b>${man(t.revenueMin, { sign: false })}~${man(t.revenueMax, { sign: false })}</b></div>`}
+          ${locked ? '' : `<div class="biz-stat">📊 예상 월매출<b>${man(t.revenueMin, { sign: false })}~${man(t.revenueMax, { sign: false })}</b></div>`}
         </div>
         ${on ? '<div class="biz-check">✓</div>' : locked ? '<div class="biz-lock">🔒</div>' : ''}
       </div>`;
@@ -64,14 +64,16 @@ function renderManage(app) {
   const b = s.business;
   const t = core.businessType(s);
   const B = app.data.businesses;
-  const lw = b.lastWeek;
+  const lw = b.lastMonth;
+  const mode = core.operationMode(s);
+  const modeLabel = B.operationModes[mode].label;
   const kpi = lw
     ? `<div class="kpi card">
-        <div><div class="lbl">지난주 매출</div><div class="val num ${amountClass(lw.revenue)}">${man(lw.revenue)}</div></div>
+        <div><div class="lbl">지난달 매출</div><div class="val num ${amountClass(lw.revenue)}">${man(lw.revenue)}</div></div>
         <div><div class="lbl">비용</div><div class="val num expense">${man(-(lw.fixed + lw.promo + lw.labor + lw.materials + lw.interest))}</div></div>
         <div><div class="lbl">순익</div><div class="val num ${amountClass(lw.net)}">${man(lw.net)}</div></div>
       </div>`
-    : `<div class="card hint">첫 정산은 다음 주에 나옵니다</div>`;
+    : `<div class="card hint">첫 정산은 "다음 달"을 누르면 나옵니다</div>`;
 
   const editing = app.ui.scratch.editName;
   const nameRow = editing
@@ -87,8 +89,8 @@ function renderManage(app) {
   let staff = '';
   if (t.staff) {
     staff = `<h3 class="sec">직원 ${b.staff}명</h3>` + (b.staff > 0
-      ? `<div class="staff-card"><img src="${app.asset(t.staff.avatar)}" alt="" /><div class="grow"><div class="b">${esc(t.staff.name)}</div><div class="muted">급여 ${man(t.staff.wage, { sign: false })} · 매출 +${Math.round((t.staff.revenueMult - 1) * 100)}%</div></div><button class="btn danger-text" data-action="biz.fire">해고</button></div>`
-      : `<button class="btn ghost" data-action="biz.hire">고용하기 (주 ${man(t.staff.wage, { sign: false })}, 매출 +${Math.round((t.staff.revenueMult - 1) * 100)}%)</button>`);
+      ? `<div class="staff-card"><img src="${app.asset(t.staff.avatar)}" alt="" /><div class="grow"><div class="b">${esc(t.staff.name)}</div><div class="muted">월급 ${man(t.staff.wage, { sign: false })} · 주인과 함께 ×${B.operationModes.ownerStaff.revenueMult} · 위임 ×${B.operationModes.delegated.revenueMult}</div></div><button class="btn danger-text" data-action="biz.fire">해고</button></div>`
+      : `<button class="btn ghost" data-action="biz.hire">고용하기 (월 ${man(t.staff.wage, { sign: false })})</button>`);
   }
 
   let upgrade = '';
@@ -107,9 +109,10 @@ function renderManage(app) {
     <div class="card policy">
       <div class="row"><span class="ico">🏷️</span><span class="lbl">가격</span>${seg(Object.entries(B.priceOptions).map(([k, v]) => [k, v.label]), b.price, 'biz.price')}</div>
       <div class="row"><span class="ico">🧺</span><span class="lbl">재료 등급</span>${stars}</div>
-      <div class="row"><span class="ico">📣</span><span class="lbl">홍보</span><button class="toggle ${b.promo ? 'on' : ''}" data-action="biz.promo"></button><span class="muted">${b.promo ? `켬 · 주 ${man(t.promoCost, { sign: false })}` : '끔'}</span></div>
-      <div class="row"><span class="ico">🏪</span><span class="lbl">영업 상태</span>${seg([[true, '영업'], [false, '휴무']], b.open, 'biz.open')}</div>
+      <div class="row"><span class="ico">📣</span><span class="lbl">홍보</span><button class="toggle ${b.promo ? 'on' : ''}" data-action="biz.promo"></button><span class="muted">${b.promo ? `켬 · 월 ${man(t.promoCost, { sign: false })}` : '끔'}</span></div>
+      <div class="row"><span class="ico">🏪</span><span class="lbl">이번 달</span><div class="grow"><b class="${mode === 'closed' ? 'expense' : ''}">${esc(modeLabel)}</b> <button class="link" data-action="app.open" data-v="activity">활동 창에서 변경</button></div></div>
     </div>
+    <div class="hint">영업 형태는 본업 선택(가게 운영 / 위임)으로 정해집니다 · 고정비 ${man(core.fixedCostOf(s), { sign: false })} (경영 ${s.stats.management} 할인 적용)</div>
     ${staff}
     ${upgrade}
     ${loanCard(app)}`;
@@ -125,7 +128,7 @@ export const actions = {
     const id = app.ui.scratch.bizType || 'stall';
     const t = core.findBusinessType(id);
     app.openPopup({
-      type: 'confirm', title: '개업', text: `${man(t.openCost, { sign: false })}원을 쓰고 ${t.name}을 엽니다. 계속?`, ok: '개업', cancel: '취소',
+      type: 'confirm', title: '개업', text: `${man(t.openCost, { sign: false })}원을 쓰고 ${t.name}을 엽니다. 본업이 "가게 운영"으로 바뀝니다. 계속?`, ok: '개업', cancel: '취소',
       onOk: (a) => { a.state = core.openBusiness(a.state, { typeId: id }); },
     });
   },
@@ -139,7 +142,6 @@ export const actions = {
   },
   'biz.price': (app, el) => app.dispatch(core.setPolicy(app.state, { price: el.dataset.v })),
   'biz.promo': (app) => app.dispatch(core.setPolicy(app.state, { promo: !app.state.business.promo })),
-  'biz.open': (app, el) => app.dispatch(core.setPolicy(app.state, { open: el.dataset.v === 'true' })),
   'biz.upgrade': (app, el) => {
     const g = Number(el.dataset.v);
     const up = core.upgradeCost(app.state);
@@ -155,7 +157,7 @@ export const actions = {
   'biz.hire': (app) => {
     const t = core.businessType(app.state);
     app.openPopup({
-      type: 'confirm', title: '직원 고용', text: `${t.staff.name}을(를) 고용합니다. 매주 급여 ${man(t.staff.wage, { sign: false })}이 나가고 매출이 ${Math.round((t.staff.revenueMult - 1) * 100)}% 오릅니다. 계속?`, ok: '고용', cancel: '취소',
+      type: 'confirm', title: '직원 고용', text: `${t.staff.name}을(를) 고용합니다. 매달 월급 ${man(t.staff.wage, { sign: false })}이 나가고, 주인과 함께 운영하면 매출 ×${app.data.businesses.operationModes.ownerStaff.revenueMult}, 경영 ${app.data.stats.delegateManagementMin} 이상이면 위임(×${app.data.businesses.operationModes.delegated.revenueMult})이 가능해집니다. 계속?`, ok: '고용', cancel: '취소',
       onOk: (a) => { a.state = core.hireStaff(a.state); },
     });
   },

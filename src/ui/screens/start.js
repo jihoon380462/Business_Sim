@@ -1,4 +1,4 @@
-import { weekLabel, won } from '../format.js';
+import { turnLabel, won } from '../format.js';
 
 /** 재진입 시: 이어하기 / 새로하기 */
 export function render(app) {
@@ -6,7 +6,7 @@ export function render(app) {
   return `
     <div class="m-head"><h2>저장된 게임이 있습니다</h2></div>
     <div class="m-body">
-      <div class="ev-text">${weekLabel(s.week)} · 자금 ${won(s.money)}</div>
+      <div class="ev-text">${turnLabel(s.turn)} · 자금 ${won(s.money)}</div>
       <div class="ev-btns">
         <button class="btn primary" data-action="st.continue">이어하기</button>
         <button class="btn plain" data-action="st.new">새로하기</button>

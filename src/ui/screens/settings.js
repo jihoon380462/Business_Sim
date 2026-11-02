@@ -1,5 +1,5 @@
 import * as core from '../../core/index.js';
-import { weekLabel } from '../format.js';
+import { turnLabel } from '../format.js';
 import { APP_VERSION, APP_BUILD } from '../../version.js';
 
 export const title = () => '⚙️ 설정';
@@ -10,7 +10,7 @@ export function render(app) {
   const other = s.gender === 'm' ? 'f' : 'm';
   return `
     <div class="card">
-      <div class="set-row"><span class="lbl">저장</span><span class="muted">자동 저장 · ${weekLabel(s.week)}</span></div>
+      <div class="set-row"><span class="lbl">저장</span><span class="muted">자동 저장 · ${turnLabel(s.turn)}</span></div>
       <div class="set-row"><span class="lbl">이어하기</span><button class="btn sm auto ghost" data-action="set.continue">마지막 저장 불러오기</button></div>
       <div class="set-row"><span class="lbl">새로하기</span><button class="btn sm auto plain" data-action="set.new">처음부터</button></div>
     </div>

@@ -1,0 +1,42 @@
+{
+  "order": ["stamina", "skill", "management", "speech", "knowledge"],
+  "names": {
+    "stamina": "체력",
+    "skill": "기술",
+    "management": "경영",
+    "speech": "화술",
+    "knowledge": "지식"
+  },
+  "descriptions": {
+    "stamina": "컨디션 최대치. 택배 알바·헬스장으로 오른다.",
+    "skill": "가게 매출 배율. 카페·가게 운영·공부(기술)로 오른다.",
+    "management": "고정비 절감, 위임 가능 조건. 가게 운영·공부(경영)로 오른다.",
+    "speech": "대출 이자 할인. 편의점·카페 알바로 오른다.",
+    "knowledge": "소문 정보의 정확도. 공부(지식)로 오른다."
+  },
+  "start": {
+    "stamina": 60,
+    "skill": 10,
+    "management": 5,
+    "speech": 15,
+    "knowledge": 10
+  },
+  "min": 0,
+  "max": 100,
+  "slowAbove": 90,
+  "slowFactor": 0.5,
+  "startCondition": 60,
+  "lowConditionThreshold": 30,
+  "lowConditionRevenueMult": 0.8,
+  "wageMult": { "base": 0.8, "range": 0.4 },
+  "skillRevenueMult": { "base": 0.85, "range": 0.3 },
+  "fixedCostMult": { "base": 1.0, "range": -0.15 },
+  "loanRateMult": { "base": 1.0, "range": -0.4 },
+  "delegateManagementMin": 30,
+  "rumorKnowledge": {
+    "directionOnly": 0,
+    "withTiming": 30,
+    "withMagnitude": 60
+  },
+  "studyTargets": ["skill", "management", "knowledge"]
+}

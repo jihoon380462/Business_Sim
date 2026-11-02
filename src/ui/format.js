@@ -1,5 +1,5 @@
-// 표기 유틸 (금액·주차). 수치 계산은 하지 않는다.
-import { weekLabel as coreWeekLabel } from '../core/index.js';
+// 표기 유틸 (금액·턴). 수치 계산은 하지 않는다.
+import { turnLabel as coreTurnLabel } from '../core/index.js';
 
 const fmtInt = (n) => Math.abs(Math.round(n)).toLocaleString('ko-KR');
 
@@ -36,8 +36,12 @@ export function amountClass(n) {
   return '';
 }
 
-export function weekLabel(week) {
-  return coreWeekLabel(week);
+export function turnLabel(turn) {
+  return coreTurnLabel(turn);
+}
+
+export function signed(n) {
+  return n > 0 ? `+${n}` : `${n}`;
 }
 
 export function esc(s) {

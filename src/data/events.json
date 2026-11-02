@@ -1,5 +1,5 @@
 {
-  "maxPerWeek": 1,
+  "maxPerMonth": 1,
   "rumor": {
     "cost": 100000,
     "delayMin": 1,
@@ -13,10 +13,10 @@
   },
   "delisting": {
     "symbolType": "junk",
-    "warningWeeks": 1,
+    "warningMonths": 1,
     "warningDrop": 0.4,
-    "minWeek": 20,
-    "weeklyChance": 0.03
+    "minMonth": 6,
+    "monthlyChance": 0.1
   },
   "events": [
     {
@@ -26,9 +26,10 @@
       "title": "병원비",
       "text": "갑자기 몸이 아파 병원에 다녀왔다.",
       "emoji": "🏥",
-      "chance": 0.03,
-      "cooldown": 12,
-      "money": -300000
+      "chance": 0.1,
+      "cooldown": 3,
+      "money": -300000,
+      "condition": -20
     },
     {
       "id": "wedding",
@@ -37,8 +38,8 @@
       "title": "친구 결혼 축의금",
       "text": "친구 결혼식에 축의금을 냈다.",
       "emoji": "💍",
-      "chance": 0.04,
-      "cooldown": 16,
+      "chance": 0.12,
+      "cooldown": 4,
       "money": -100000
     },
     {
@@ -48,8 +49,8 @@
       "title": "중고 거래 득템",
       "text": "안 쓰는 물건을 생각보다 비싸게 팔았다.",
       "emoji": "📱",
-      "chance": 0.04,
-      "cooldown": 10,
+      "chance": 0.12,
+      "cooldown": 3,
       "money": 150000
     },
     {
@@ -58,10 +59,10 @@
       "kind": "choice",
       "title": "소문",
       "emoji": "💬",
-      "chance": 0.06,
-      "cooldown": 6,
+      "chance": 0.18,
+      "cooldown": 2,
       "direction": 1,
-      "text": "{name}이(가) 큰 건을 앞두고 있다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다.",
+      "text": "{name}이(가) 큰 건을 앞두고 있다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다. (지식이 높을수록 더 정확한 정보)",
       "choices": [
         {
           "id": "pay",
@@ -79,10 +80,10 @@
       "kind": "choice",
       "title": "소문",
       "emoji": "💬",
-      "chance": 0.05,
-      "cooldown": 6,
+      "chance": 0.15,
+      "cooldown": 2,
       "direction": -1,
-      "text": "{name} 쪽에서 뭔가 심상치 않다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다.",
+      "text": "{name} 쪽에서 뭔가 심상치 않다는 얘기가 돈다. 10만원을 내면 자세히 들을 수 있다. (지식이 높을수록 더 정확한 정보)",
       "choices": [
         {
           "id": "pay",
@@ -101,8 +102,8 @@
       "title": "단골 생김",
       "text": "가게에 단골이 생겼다.",
       "emoji": "🙂",
-      "chance": 0.06,
-      "cooldown": 8,
+      "chance": 0.18,
+      "cooldown": 2,
       "requiresBusiness": true,
       "reputation": 10
     },
@@ -113,8 +114,8 @@
       "title": "위생 점검",
       "text": "위생 점검이 나왔다.",
       "emoji": "🧾",
-      "chance": 0.04,
-      "cooldown": 12,
+      "chance": 0.12,
+      "cooldown": 3,
       "requiresBusiness": true,
       "fineIfGradeBelow": 2,
       "fine": {

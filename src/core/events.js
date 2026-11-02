@@ -1,12 +1,13 @@
-// 랜덤 이벤트 선택·적용. 통보형은 즉시 로그, 선택형은 state.events.pending 에 대기.
+// 랜덤 이벤트 (월 판정). 통보형은 결산 요약 + 피드, 선택형은 state.events.pending 에 대기.
 import { D, findStock } from './data.js';
-import { clone, pushLog } from './state.js';
+import { clone, pushLog, addIncome, addExpense, addNotice } from './state.js';
 import { chance, pick, randInt, randRange } from './rng.js';
 import { isDelisted } from './stocks.js';
+import { changeCondition, rumorDetailLevel } from './stats.js';
 
 function onCooldown(state, ev) {
   const last = state.events.cooldowns[ev.id];
-  return last != null && state.week - last < ev.cooldown;
+  return last != null && state.turn - last < ev.cooldown;
 }
 
 function eligible(state, ev) {
@@ -16,36 +17,36 @@ function eligible(state, ev) {
   return true;
 }
 
-/** 매주 이벤트 판정 (주당 최대 maxPerWeek 건) */
+/** 매달 이벤트 판정 (월 최대 maxPerMonth 건) */
 export function rollEvents(state) {
   const E = D.events;
   let fired = 0;
 
-  // 상장폐지 예고 (잡주, 1회)
   const dl = E.delisting;
-  if (!state.events.flags.delistWarned && !state.events.delisting && state.week >= dl.minWeek) {
+  if (!state.events.flags.delistWarned && !state.events.delisting && state.turn >= dl.minMonth) {
     const junk = D.stocks.symbols.filter((s) => s.type === dl.symbolType && !isDelisted(state, s.id));
-    if (junk.length && chance(state, dl.weeklyChance)) {
+    if (junk.length && chance(state, dl.monthlyChance)) {
       const sym = pick(state, junk);
-      state.events.delisting = { symbol: sym.id, weeksLeft: dl.warningWeeks };
+      state.events.delisting = { symbol: sym.id, monthsLeft: dl.warningMonths };
       state.events.flags.delistWarned = true;
-      // 예고 주에 즉시 급락. 이번 주는 매도 가능, 다음 주 0원·소멸.
       const drop = dl.warningDrop ?? 0;
       if (drop > 0) {
         state.stocks.prices[sym.id] = Math.max(1, Math.round(state.stocks.prices[sym.id] * (1 - drop)));
         const h = state.stocks.history[sym.id];
         h[h.length - 1] = state.stocks.prices[sym.id];
       }
-      pushLog(state, { emoji: '⚠️', title: `${sym.name} 상장폐지 심사 통보 (${dl.warningWeeks}주 뒤)${drop > 0 ? ` — 주가 -${Math.round(drop * 100)}%` : ''}` });
+      const text = `${sym.name} 상장폐지 심사 통보 — 주가 -${Math.round(drop * 100)}%, 다음 달 상장폐지`;
+      pushLog(state, { emoji: '⚠️', title: text });
+      addNotice(state, '⚠️', text);
       fired += 1;
     }
   }
 
   for (const ev of E.events) {
-    if (fired >= E.maxPerWeek) break;
+    if (fired >= E.maxPerMonth) break;
     if (!eligible(state, ev)) continue;
     if (!chance(state, ev.chance)) continue;
-    state.events.cooldowns[ev.id] = state.week;
+    state.events.cooldowns[ev.id] = state.turn;
     if (ev.kind === 'notice') applyNotice(state, ev);
     else if (ev.kind === 'choice') queueChoice(state, ev);
     fired += 1;
@@ -59,21 +60,34 @@ function applyNotice(state, ev) {
     if (b.grade < ev.fineIfGradeBelow) {
       const fine = ev.fine[b.type] ?? 0;
       state.money -= fine;
+      addExpense(state, '위생 벌금', fine);
+      addNotice(state, ev.emoji, `${ev.title}: ${ev.failText} (-${Math.round(fine / 10000)}만)`);
       pushLog(state, { emoji: ev.emoji, title: `${ev.title}: ${ev.failText}`, amount: -fine });
     } else {
+      addNotice(state, ev.emoji, `${ev.title}: ${ev.passText}`);
       pushLog(state, { emoji: ev.emoji, title: `${ev.title}: ${ev.passText}` });
     }
     return;
   }
+  const parts = [];
   if (typeof ev.money === 'number') {
     state.money += ev.money;
+    if (ev.money > 0) addIncome(state, ev.title, ev.money);
+    else addExpense(state, ev.title, ev.money);
+    parts.push(`${ev.money > 0 ? '+' : '-'}${Math.round(Math.abs(ev.money) / 10000)}만`);
     pushLog(state, { emoji: ev.emoji, title: ev.title, amount: ev.money });
+  }
+  if (typeof ev.condition === 'number') {
+    changeCondition(state, ev.condition);
+    parts.push(`컨디션 ${ev.condition}`);
   }
   if (typeof ev.reputation === 'number' && state.business) {
     const B = D.businesses;
     state.business.reputation = Math.max(B.reputationMin, Math.min(B.reputationMax, state.business.reputation + ev.reputation));
+    parts.push(`평판 +${ev.reputation}`);
     pushLog(state, { emoji: ev.emoji, title: `${ev.title} (평판 +${ev.reputation})` });
   }
+  addNotice(state, ev.emoji, `${ev.title}: ${ev.text}${parts.length ? ` (${parts.join(', ')})` : ''}`);
 }
 
 function queueChoice(state, ev) {
@@ -97,7 +111,15 @@ function queueChoice(state, ev) {
   };
 }
 
-/** 선택형 이벤트 응답 */
+/** 소문 구입 시 지식 수준에 따른 문구 */
+function rumorDetailText(state, sym, p) {
+  const level = rumorDetailLevel(state);
+  const dir = p.direction > 0 ? '호재' : '악재';
+  if (level === 'direction') return `${sym.name} ${dir} 예정 (시점·폭 불명)`;
+  if (level === 'timing') return `${sym.name} ${p.delay}개월 뒤 ${dir}`;
+  return `${sym.name} ${p.delay}개월 뒤 ${dir}, ${p.direction > 0 ? '+' : '-'}${Math.round(p.shock * 100)}%`;
+}
+
 export function resolveEvent(input, { choiceId }) {
   if (!input.events.pending) return input;
   const state = clone(input);
@@ -107,32 +129,31 @@ export function resolveEvent(input, { choiceId }) {
     const sym = findStock(p.payload.symbol);
     const R = D.events.rumor;
     const known = choiceId === 'pay';
+    let detail = null;
     if (known) {
       state.money -= R.cost;
-      const dirText = p.payload.direction > 0 ? '호재' : '악재';
-      pushLog(state, { emoji: '💬', title: `소문 구입: ${sym.name} ${p.payload.delay}주 뒤 ${dirText}`, amount: -R.cost });
+      detail = rumorDetailText(state, sym, p.payload);
+      pushLog(state, { emoji: '💬', title: `소문 구입: ${detail}`, amount: -R.cost });
     } else {
       pushLog(state, { emoji: '💬', title: `소문 무시: ${sym.name}` });
     }
     state.events.rumor = {
       symbol: sym.id,
       direction: p.payload.direction,
-      weeksLeft: p.payload.delay,
+      monthsLeft: p.payload.delay,
       shock: p.payload.shock,
       known,
+      detail,
     };
   }
   return state;
 }
 
-/** 주식 창 소문 배너 문구 */
 export function rumorBanner(state) {
   const r = state.events.rumor;
   if (!r) return null;
   const sym = findStock(r.symbol);
   if (!sym) return null;
-  if (r.known) {
-    return r.direction > 0 ? `소문: ${sym.name} 호재 예정 (${r.weeksLeft}주 뒤)` : `소문: ${sym.name} 악재 예정 (${r.weeksLeft}주 뒤)`;
-  }
+  if (r.known) return `소문: ${r.detail}`;
   return `소문: ${sym.name} 관련 얘기가 돈다 (내용 불명)`;
 }

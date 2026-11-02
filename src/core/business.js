@@ -1,14 +1,16 @@
-// 사업체: 개업 · 운영 방침 · 매주 정산 · 직원 · 업그레이드.
+// 사업체: 개업 · 운영 방침 · 운영 형태(본업 선택에 종속) · 월 정산 · 직원 · 업그레이드.
 import { D, findBusinessType } from './data.js';
-import { clone, pushLog } from './state.js';
+import { clone, pushLog, addIncome, addExpense, addNotice } from './state.js';
 import { randRange } from './rng.js';
 import { seasonOf } from './calendar.js';
+import { skillRevenueMult, fixedCostMult } from './stats.js';
+import { monthlyInterest } from './economy.js';
+import { ownerOperates, canDelegate } from './jobs.js';
 
 export function businessType(state) {
   return state.business ? findBusinessType(state.business.type) : null;
 }
 
-/** 개업 가능 여부와 사유 */
 export function canOpen(state, typeId) {
   const t = findBusinessType(typeId);
   if (!t) return { ok: false, reason: 'unknown' };
@@ -20,7 +22,7 @@ export function canOpen(state, typeId) {
   return { ok: true, reason: null, shortfall: 0 };
 }
 
-function newBusiness(typeId, week, prev) {
+function newBusiness(typeId, turn, prev) {
   const B = D.businesses;
   return {
     type: typeId,
@@ -29,16 +31,15 @@ function newBusiness(typeId, week, prev) {
     price: 'mid',
     grade: 1,
     promo: false,
-    open: true,
     staff: 0,
-    openedWeek: week,
-    lastWeek: null,
+    openedTurn: turn,
+    lastMonth: null,
     history: [],
     profitStreak: 0,
   };
 }
 
-/** 개업 (노점) 또는 확장 (노점→분식집). 자금 차감. */
+/** 개업(노점) 또는 확장(노점→분식집). 개업하면 본업을 자동으로 "가게 운영"으로 바꾼다. */
 export function openBusiness(input, { typeId }) {
   const check = canOpen(input, typeId);
   if (!check.ok) return input;
@@ -46,19 +47,22 @@ export function openBusiness(input, { typeId }) {
   const t = findBusinessType(typeId);
   state.money -= t.openCost;
   const prev = state.business;
-  state.business = newBusiness(typeId, state.week, prev);
+  state.business = newBusiness(typeId, state.turn, prev);
   if (!state.businessHistory.includes(typeId)) state.businessHistory.push(typeId);
+  if (!prev) {
+    state.activity.main = D.jobs.operateId;
+    state.activity.prevMain = null;
+  }
+  if (!t.allowDelegate) state.activity.delegate = false;
   pushLog(state, { emoji: t.emoji, title: prev ? `${t.name}으로 확장` : `${t.name} 개업`, amount: -t.openCost });
   return state;
 }
 
-export function setPolicy(input, { price, promo, open }) {
+export function setPolicy(input, { price, promo }) {
   if (!input.business) return input;
   const state = clone(input);
-  const b = state.business;
-  if (price && D.businesses.priceOptions[price]) b.price = price;
-  if (typeof promo === 'boolean') b.promo = promo;
-  if (typeof open === 'boolean') b.open = open;
+  if (price && D.businesses.priceOptions[price]) state.business.price = price;
+  if (typeof promo === 'boolean') state.business.promo = promo;
   return state;
 }
 
@@ -106,53 +110,77 @@ export function fireStaff(input) {
   if (!input.business || input.business.staff === 0) return input;
   const state = clone(input);
   state.business.staff = 0;
+  state.activity.delegate = false;
   pushLog(state, { emoji: '🧑‍🍳', title: '직원 해고' });
   return state;
 }
 
-/** 매주 사업 정산 */
+/** 이번 달 운영 형태: owner | ownerStaff | delegated | closed (본업 선택 + 직원 + 위임 조건에서 파생) */
+export function operationMode(state) {
+  const b = state.business;
+  if (!b) return null;
+  const t = findBusinessType(b.type);
+  if (ownerOperates(state)) return b.staff > 0 && t.staff ? 'ownerStaff' : 'owner';
+  if (state.activity.delegate && canDelegate(state).ok) return 'delegated';
+  return 'closed';
+}
+
+export function fixedCostOf(state) {
+  const t = businessType(state);
+  return t ? Math.round(t.fixedCost * fixedCostMult(state)) : 0;
+}
+
+/** 월 사업 정산 */
 export function settleBusiness(state) {
   const b = state.business;
   if (!b) return state;
   const B = D.businesses;
   const t = findBusinessType(b.type);
-  const cfg = D.config;
-  const interest = Math.round(state.loan.principal * cfg.loan.weeklyInterestRate);
+  const mode = operationMode(state);
+  const modeMult = B.operationModes[mode].revenueMult;
+  const interest = monthlyInterest(state);
 
-  let revenue = 0;
-  let materials = 0;
-  let labor = 0;
-  let promo = 0;
-  const fixed = t.fixedCost;
+  let revenue = 0, materials = 0, promo = 0;
+  const fixed = fixedCostOf(state);
+  const labor = b.staff > 0 && t.staff ? t.staff.wage : 0;
+  const ownerPresent = mode === 'owner' || mode === 'ownerStaff';
 
-  if (b.open) {
+  if (mode !== 'closed') {
     const base = randRange(state, t.revenueMin, t.revenueMax);
-    const season = t.seasonMult[seasonOf(state.week)] ?? 1;
+    const season = t.seasonMult[seasonOf(state.turn)] ?? 1;
     const priceMult = B.priceOptions[b.price].revenueMult;
     const repMult = B.reputationRevenueBase + B.reputationRevenueRange * (b.reputation / B.reputationMax);
-    const staffMult = b.staff > 0 && t.staff ? t.staff.revenueMult : 1;
-    revenue = Math.round(base * season * priceMult * repMult * staffMult);
+    // 컨디션 판정은 이달 시작 시점 값 기준 (활동 정산으로 바뀌기 전)
+    const condAtStart = state.summary ? state.summary.conditionFrom : state.condition;
+    const condMult = ownerPresent && condAtStart <= D.stats.lowConditionThreshold ? D.stats.lowConditionRevenueMult : 1;
+    revenue = Math.round(base * season * priceMult * repMult * skillRevenueMult(state) * modeMult * condMult);
     materials = Math.round(revenue * B.ingredientGrades[String(b.grade)].materialRate);
     if (b.promo) promo = t.promoCost;
-    // 평판 변화
     let dRep = B.priceOptions[b.price].reputationDelta + B.ingredientGrades[String(b.grade)].reputationDelta;
     if (b.promo) dRep += B.promoReputationDelta;
+    if (!ownerPresent) dRep += B.ownerAbsentReputationDelta;
     b.reputation = Math.max(B.reputationMin, Math.min(B.reputationMax, b.reputation + dRep));
+    if (condMult < 1) addNotice(state, '🥱', '컨디션이 낮아 가게 매출이 줄었다 (×0.8)');
   } else {
-    state.energy = Math.min(cfg.maxEnergy, state.energy + B.closedEnergyRecovery);
+    b.reputation = Math.max(B.reputationMin, b.reputation + B.ownerAbsentReputationDelta);
+    addNotice(state, '🚪', `${t.name} 휴무 — 주인 부재 (고정비는 나감, 평판 ${B.ownerAbsentReputationDelta})`);
   }
-  if (b.staff > 0 && t.staff) labor = t.staff.wage;
 
   const net = revenue - materials - labor - fixed - promo - interest;
   state.money += revenue - materials - labor - fixed - promo; // 이자는 economy 에서 차감
 
-  const rec = { week: state.week, revenue, materials, labor, fixed, promo, interest, net };
-  b.lastWeek = rec;
+  addIncome(state, `${t.name} 매출`, revenue);
+  addExpense(state, '재료비', materials);
+  addExpense(state, '인건비', labor);
+  addExpense(state, '고정비', fixed);
+  addExpense(state, '홍보', promo);
+
+  const rec = { turn: state.turn, mode, revenue, materials, labor, fixed, promo, interest, net };
+  b.lastMonth = rec;
   b.history.push(rec);
-  while (b.history.length > 52) b.history.shift();
+  while (b.history.length > 36) b.history.shift();
   b.profitStreak = net > 0 ? b.profitStreak + 1 : 0;
 
-  const title = b.open ? `${t.name} 정산` : `${t.name} 휴무`;
-  pushLog(state, { emoji: t.emoji, title, amount: revenue - materials - labor - fixed - promo });
+  pushLog(state, { emoji: t.emoji, title: mode === 'closed' ? `${t.name} 휴무` : `${t.name} 정산 (${B.operationModes[mode].label})`, amount: revenue - materials - labor - fixed - promo });
   return state;
 }
