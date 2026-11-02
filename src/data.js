@@ -1,6 +1,6 @@
 // 아버지의 공장 — 밸런스 데이터. 숫자는 여기서만 바꾼다.
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 export const SAVE_KEY = 'fathers_factory_save_v1';
 
 // ---------- 시간 ----------
@@ -100,6 +100,26 @@ export const MACHINES = {
   assembly:   { type: 'assembly', name: '조립대',         price: 25000000,  speed: 1.0,  wear: 0.7 },
   assembly_robot: { type: 'assembly', name: '협동 로봇 조립', price: 140000000, speed: 1.6, wear: 0.6, auto: true },
 };
+// 설비 해금 조건 (조건 없음 = 처음부터). rep: [거래처 등급, 신뢰], tier: 해금된 거래처 등급, cert: 인증
+export const UNLOCKS = {
+  types: {
+    press: null,
+    weld: null,
+    lathe: { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
+    mold:  { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
+    heat:  { tier: 1, hint: '2차 협력사 거래 시작' },
+    paint: { cert: 'iso', hint: 'ISO 9001 인증' },
+    assembly: { cert: 'iso', hint: 'ISO 9001 인증' },
+  },
+  models: {
+    press_new: { tier: 1, hint: '2차 협력사 거래 시작' },
+    lathe_new: { tier: 1, hint: '2차 협력사 거래 시작' },
+    weld_robot: { cert: 'iso', hint: 'ISO 9001 인증' },
+    assembly_robot: { cert: 'iatf', hint: 'IATF 16949 인증' },
+  },
+  split: { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
+};
+
 export const MACHINE_RULES = {
   inBufferMult: 2,            // 재료를 레시피 필요량의 몇 배까지 쌓아 두나
   outBuffer: 2,

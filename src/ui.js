@@ -103,11 +103,15 @@ export function createUI(game) {
   function renderBar() {
     const s = game.s;
     if (ui.buildMode) {
-      el.bar.innerHTML = `<div class="palette">${PALETTE.map((p, i) => {
+      const avail = (p) => (p.kind === 'machine' ? S.modelUnlocked(s, p.model) : p.kind === 'split' ? S.splitUnlocked(s) : true);
+      const tools = PALETTE.map((p, i) => [p, i]).filter(([p]) => avail(p)).map(([p, i]) => {
         const on = ui.tool && ui.tool.kind === p.kind && (p.model ? ui.tool.model === p.model : true);
         const cost = ['rotate', 'remove'].includes(p.kind) ? '' : man(S.buildCost(s, p.kind, p.model));
         return `<button class="tool ${on ? 'on' : ''} ${p.danger ? 'danger' : ''}" data-a="tool" data-v="${i}"><span class="ico">${p.ico}</span><span class="nm">${p.nm}</span><span class="pr">${cost}</span></button>`;
-      }).join('')}</div><button class="done-btn" data-a="build-done"><span class="ico">✔️</span>완료</button>`;
+      });
+      tools.push(`<button class="tool done" data-a="build-done"><span class="ico">✔️</span><span class="nm">완료</span><span class="pr">&nbsp;</span></button>`);
+      const next = S.nextUnlocks(s)[0];
+      el.bar.innerHTML = `<div class="palette-wrap"><div class="palette">${tools.join('')}</div>${next ? `<div class="next-unlock">🔒 다음 해금: ${next.icon} ${esc(next.name)} — ${esc(next.hint)}</div>` : ''}</div>`;
       return;
     }
     const n = s.offers.length;
@@ -138,7 +142,7 @@ export function createUI(game) {
 
   function renderSheet() {
     if (!ui.sheet) { el.sheetWrap.classList.add('hidden'); return; }
-    const f = { orders: sheetOrders, staff: sheetStaff, manage: sheetManage, books: sheetBooks, inspect: sheetInspect }[ui.sheet.type];
+    const f = { orders: sheetOrders, staff: sheetStaff, manage: sheetManage, books: sheetBooks, inspect: sheetInspect, process: sheetProcess }[ui.sheet.type];
     el.sheet.innerHTML = f();
     el.sheetWrap.classList.remove('hidden');
   }
@@ -149,7 +153,7 @@ export function createUI(game) {
     const ms = S.machinesList(s);
     let cap = Infinity;
     for (const c of S.chainFor(item)) {
-      const lots = ms.filter((m) => m.recipe === c.recipe && !m.broken).reduce((a, m) => a + S.machineLotsPerDay(s, m), 0) / c.mult;
+      const lots = ms.filter((m) => m.recipe === c.recipe && !m.broken).reduce((a, m) => a + S.machinePerMin(s, m), 0) / c.mult;
       cap = Math.min(cap, lots);
     }
     return cap === Infinity ? 0 : cap;
@@ -179,10 +183,11 @@ export function createUI(game) {
         const load = Math.max(0, S.demandLots(s, o.item) - (s.inventory[o.item] || 0));
         const days = cap > 0 ? Math.ceil((load + o.lots) / cap) : null;
         const miss = missingFor(o.item);
-        const feas = miss.length ? `<span class="tag no">필요: ${miss.join(', ')}</span>` : days == null ? '<span class="tag no">라인 없음</span>' : days <= o.dueDays ? `<span class="tag ok">약 ${days}일이면 완료</span>` : `<span class="tag warn">약 ${days}일 걸림 (납기 ${o.dueDays}일)</span>`;
+        const capTxt = cap > 0 ? ` · 지금 라인 분당 ${cap.toFixed(1)}상자` : '';
+        const feas = miss.length ? `<span class="tag no">필요: ${miss.join(', ')}</span>` : days == null ? '<span class="tag no">라인 없음</span>' : days <= o.dueDays ? `<span class="tag ok">약 ${days}일이면 완료${capTxt}</span>` : `<span class="tag warn">약 ${days}일 걸림 (납기 ${o.dueDays}일)${capTxt}</span>`;
         return `<div class="card offer">
           <div class="head">${tierTag(o.tier)}<span class="client">${esc(o.client)}</span><span class="muted" style="margin-left:auto">${o.expires - today <= 0 ? '오늘까지' : `${o.expires - today}일 뒤 마감`}</span></div>
-          <div class="row" style="margin-top:8px"><div class="big-ico">${it.icon}</div><div class="grow"><div class="b" style="font-weight:800">${esc(it.name)}</div><div class="qty">${S.fmtQty(o)} <span class="muted">(${o.lots}상자)</span></div></div></div>
+          <div class="row tap" style="margin-top:8px" data-a="process" data-v="${o.item}"><div class="big-ico">${it.icon}</div><div class="grow"><div class="b" style="font-weight:800">${esc(it.name)}</div><div class="qty">${S.fmtQty(o)} <span class="muted">(${o.lots}상자)</span></div></div><span class="howto">공정 보기 ›</span></div>
           <div class="facts">
             <div><div class="l">총액</div><div class="v">${man(value)}</div></div>
             <div><div class="l">개당</div><div class="v">${o.unitPrice.toLocaleString('ko-KR')}원</div></div>
@@ -200,7 +205,7 @@ export function createUI(game) {
         const left = o.dueDay - today;
         return `<div class="card ${left < 0 ? 'bad' : left <= 1 ? 'warn' : ''}">
           <div class="row">${tierTag(o.tier)}<b>${esc(o.client)}</b>${o.regular ? '<span class="tag">아버지 단골</span>' : ''}<span class="grow"></span><span class="dh" style="font-size:16px">${left < 0 ? `지연 ${-left}일` : left === 0 ? '오늘 마감' : `D-${left}`}</span></div>
-          <div class="row" style="margin-top:6px"><span style="font-size:20px">${it.icon}</span><div class="grow"><b>${esc(it.name)}</b> ${S.fmtQty(o)} · ${man(o.lots * it.lot * o.unitPrice)}</div></div>
+          <div class="row tap" style="margin-top:6px" data-a="process" data-v="${o.item}"><span style="font-size:20px">${it.icon}</span><div class="grow"><b>${esc(it.name)}</b> ${S.fmtQty(o)} · ${man(o.lots * it.lot * o.unitPrice)}</div><span class="howto">공정 ›</span></div>
           <div class="row" style="margin-top:6px"><div class="grow"><div class="bar-mini"><i style="width:${(have / o.lots) * 100}%"></i></div></div><span class="dh">${have}/${o.lots}</span></div>
           ${left < 0 ? `<div class="muted" style="margin-top:4px">하루 늦을 때마다 위약금 ${Math.round(D.TIERS[o.tier].penaltyPerDay * 100)}%, ${D.OFFERS.cancelAfterLateDays}일 넘으면 계약 해지</div>` : ''}
         </div>`;
@@ -338,6 +343,50 @@ export function createUI(game) {
       <div class="muted" style="margin-top:6px">생산 ${r.crafts}회 · 불량 ${r.crafts ? ((r.defects / r.crafts) * 100).toFixed(1) : 0}% · 외상 회수 ${man(r.collected)}${r.built ? ` · 설비 투자 ${man(r.built)}` : ''}${r.emergency ? ` · ⚠️ 긴급 대출 ${man(r.emergency)}` : ''}</div></div>`;
   }
 
+
+  // ---------- 공정 보기 ----------
+  function sheetProcess() {
+    const s = game.s;
+    const item = ui.sheet.item;
+    const it = D.ITEMS[item];
+    const finalRate = S.recipePerMin(item); // 마지막 기계 1대(기본 속도)가 분당 만드는 양
+    const ms = S.machinesList(s);
+    const rawCost = S.chainFor(item).reduce((a, c) => a + Object.entries(D.RECIPES[c.recipe].in).filter(([x]) => D.ITEMS[x].raw).reduce((b, [x, n]) => b + D.ITEMS[x].cost * n * c.mult, 0), 0);
+    const step = (rid, mult) => {
+      const r = D.RECIPES[rid];
+      const type = D.MACHINE_TYPES[r.machine];
+      const rpm = S.recipePerMin(rid);
+      const need = (finalRate * mult) / rpm;
+      const owned = ms.filter((m) => m.recipe === rid).length;
+      const locked = !S.typeUnlocked(s, r.machine) ? D.UNLOCKS.types[r.machine]?.hint : !S.recipeUnlocked(s, rid) ? '전기차 연구' : null;
+      return `<div class="pstep ${locked ? 'lock' : owned ? 'have' : ''}">
+        <div class="ph"><span class="pi" style="background:${type.color}">${type.icon}</span><b>${type.name}</b><span class="grow"></span>${locked ? `<span class="tag no">🔒</span>` : owned ? `<span class="tag ok">보유 ${owned}</span>` : '<span class="tag">없음</span>'}</div>
+        <div class="flow">${Object.entries(r.in).map(([x, n]) => itemChip(x, n)).join(' + ')}<span class="arrow">→</span>${itemChip(r.out)}</div>
+        <div class="pm">1대 분당 <b>${rpm.toFixed(1)}</b>상자 · 균형 <b>${need.toFixed(1)}대</b></div>
+        ${locked ? `<div class="pm neg">해금: ${esc(locked)}</div>` : ''}</div>`;
+    };
+    const raw = (x, mult) => `<div class="pstep raw"><div class="ph"><span class="pi" style="background:#2F6F9E">📥</span><b>입고구</b><span class="grow"></span>${itemChip(x)}</div>
+      <div class="pm">분당 <b>${(finalRate * mult).toFixed(1)}</b>상자 필요 · 상자당 ${man(D.ITEMS[x].cost)}</div></div>`;
+    const node = (x, mult) => {
+      if (D.ITEMS[x].raw) return raw(x, mult);
+      const r = D.RECIPES[x];
+      const ins = Object.entries(r.in);
+      const upstream = ins.length === 1
+        ? node(ins[0][0], mult * ins[0][1])
+        : `<div class="branches">${ins.map(([y, n]) => `<div class="branch">${node(y, mult * n)}</div>`).join('')}</div>`;
+      return `${upstream}<div class="parrow">${ins.length > 1 ? '⤵ 합치기' : '↓'}</div>${step(x, mult)}`;
+    };
+    const unlocked = S.itemUnlocked(s, item);
+    const body = `<div class="card"><div class="row"><div class="big-ico">${it.icon}</div><div class="grow"><b style="font-size:16px">${esc(it.name)}</b>
+        <div class="muted">상자 1개 = ${it.lot}개 · 기준 개당 ${it.unitPrice.toLocaleString('ko-KR')}원</div>
+        <div class="muted">상자당 매출 ≈ ${man(it.lot * it.unitPrice)} · 원자재 ${man(rawCost)}</div></div></div>
+        ${unlocked ? '' : '<div class="tag no" style="margin-top:8px">아직 만들 수 없는 설비가 있어요</div>'}</div>
+      <div class="muted" style="padding:0 4px">위에서 아래로 상자가 흐릅니다. <b>균형</b> = 마지막 기계 1대를 쉬지 않게 돌리려면 그 공정에 필요한 대수 (기본 속도, 숙련공·좋은 기계면 더 빠름)</div>
+      <div class="process">${node(item, 1)}<div class="parrow">↓</div><div class="pstep out"><div class="ph"><span class="pi" style="background:#2E8B5E">📤</span><b>출하구</b><span class="grow"></span><span class="pm">분당 ${finalRate.toFixed(1)}상자</span></div></div></div>
+      ${ui.sheet.back ? `<button class="btn ghost full" data-a="process-back">‹ 수주로 돌아가기</button>` : ''}`;
+    return shell('🗺️ 만드는 법', body);
+  }
+
   // ---------- 칸 살펴보기 ----------
   function sheetInspect() {
     const s = game.s;
@@ -346,11 +395,13 @@ export function createUI(game) {
     if (!t) return shell('빈 칸', '<div class="card muted">🏗️ 건설 모드에서 무언가를 놓을 수 있어요</div>');
     const common = `<div class="btns"><button class="btn ghost sm" data-a="rot">🔄 회전 ${DIR_ARROW[t.dir ?? 0]}</button><button class="btn ghost sm" data-a="del">🗑️ 철거</button></div>`;
     if (t.k === 'belt' || t.k === 'split') {
-      return shell(t.k === 'belt' ? '➡️ 벨트' : '🔀 분배기', `<div class="card">${t.k === 'split' ? '들어온 상자를 앞·왼쪽·오른쪽으로 번갈아 내보냅니다. 기계 두 대에 나눠 먹이거나, 두 줄을 합칠 때 씁니다.' : `상자를 ${DIR_ARROW[t.dir]} 방향으로 나릅니다. 초당 ${D.LOGISTICS.beltSpeed}칸.`}${t.jam ? '<div class="muted" style="margin-top:6px;color:var(--red)">⚠️ 막힘: 앞 칸이 이 물건을 받지 않아요</div>' : ''}</div>${common}`);
+      return shell(t.k === 'belt' ? '➡️ 벨트' : '🔀 분배기', `<div class="card">${t.k === 'split' ? '들어온 상자를 앞·왼쪽·오른쪽으로 번갈아 내보냅니다. 기계 두 대에 나눠 먹이거나, 두 줄을 합칠 때 씁니다.' : `상자를 ${DIR_ARROW[t.dir]} 방향으로 나릅니다.<div class="kv" style="margin-top:6px"><span>최대 운반량</span><b class="dh">분당 ${Math.round(S.beltPerMin())}상자</b></div>`}${t.jam ? '<div class="muted" style="margin-top:6px;color:var(--red)">⚠️ 막힘: 앞 칸이 이 물건을 받지 않아요</div>' : ''}</div>${common}`);
     }
     if (t.k === 'input') {
       const raws = Object.entries(D.ITEMS).filter(([, v]) => v.raw);
-      return shell('📥 입고구', `<div class="card">원자재를 사서 ${DIR_ARROW[t.dir]} 방향 벨트로 내보냅니다. 앞이 막히면 사지 않아요.</div>
+      return shell('📥 입고구', `<div class="card">원자재를 사서 ${DIR_ARROW[t.dir]} 방향 벨트로 내보냅니다. 앞이 막히면 사지 않아요.
+        <div class="kv" style="margin-top:6px"><span>최대 입고량</span><b class="dh">분당 ${Math.round(S.inputPerMin())}상자</b></div>
+        <div class="kv"><span>분당 최대 원자재비</span><b class="dh">${man(S.inputPerMin() * (D.ITEMS[t.item]?.cost || 0))}</b></div></div>
         <h3 class="sec">들일 원자재</h3>${raws.map(([id, v]) => `<div class="recipe ${t.item === id ? 'on' : ''}" data-a="raw" data-v="${id}">${itemChip(id)}<span class="grow"></span><span class="dh">${man(v.cost)}/상자</span></div>`).join('')}
         <div class="card"><div class="row"><div class="grow"><b>입고</b> <span class="muted">${t.on ? '켜짐' : '꺼짐'}</span></div><button class="btn sm ${t.on ? 'ghost' : 'teal'}" data-a="input-toggle">${t.on ? '멈추기' : '켜기'}</button></div></div>${common}`);
     }
@@ -364,7 +415,7 @@ export function createUI(game) {
     const def = S.machineDef(t);
     const type = D.MACHINE_TYPES[def.type];
     const w = S.workerOf(s, t);
-    const lpd = S.machineLotsPerDay(s, t);
+    const lpd = S.machinePerMin(s, t);
     let statusText = STATUS[t.status] || t.status;
     if (t.status === 'starved' && t.recipe) {
       const need = Object.entries(D.RECIPES[t.recipe].in).filter(([it, n]) => (t.inBuf[it] || 0) < n).map(([it]) => D.ITEMS[it].name);
@@ -376,7 +427,7 @@ export function createUI(game) {
       <div class="grow"><b>${esc(def.name)}</b>${def.auto ? ' <span class="tag ok">자동</span>' : ''}<div class="muted">${esc(statusText)}</div></div></div>
       ${t.broken ? `<button class="btn red full" style="margin-top:10px" data-a="repair" ${t.repairLeft > 0 ? 'disabled' : ''}>${t.repairLeft > 0 ? '수리 중…' : `🛠️ 지금 수리 (${man(repairCost)})`}</button><div class="muted" style="margin-top:4px">놔두면 ${D.MACHINE_RULES.autoRepairAfterSec}초 뒤 외부 업체가 와서 ${D.MACHINE_RULES.autoRepairCostMult}배 비용으로 고칩니다</div>` : ''}</div>
       <div class="card">
-        <div class="kv"><span>하루 최대 처리량</span><b class="dh">${lpd.toFixed(1)}상자</b></div>
+        <div class="kv"><span>분당 처리량</span><b class="dh">${lpd.toFixed(1)}상자 / 분</b></div>
         <div class="kv"><span>속도 배율</span><b class="dh">×${S.machineRate(s, t).toFixed(2)}</b></div>
         <div class="kv"><span>불량률</span><b class="dh">${(S.defectRate(s, t) * 100).toFixed(1)}%</b></div>
         <div class="kv"><span>작업자</span><b>${def.auto ? '필요 없음 🤖' : w ? `${esc(w.name)} ${stars(w.skill)}` : '<button class="btn sm red" data-a="sheet" data-v="staff">없음 — 직원 채용 ›</button>'}</b></div>
@@ -389,15 +440,15 @@ export function createUI(game) {
       const lock = !S.recipeUnlocked(s, rid);
       const ins = Object.entries(r.in).map(([it, n]) => itemChip(it, n)).join(' + ');
       return `<div class="recipe ${t.recipe === rid ? 'on' : ''} ${lock ? 'lock' : ''}" ${lock ? '' : `data-a="recipe" data-v="${rid}"`}>
-        <div class="flow grow">${ins}<span class="arrow">→</span>${itemChip(r.out)}</div><span class="muted">${lock ? '🔒 연구' : `${r.time}초`}</span></div>`;
+        <div class="flow grow">${ins}<span class="arrow">→</span>${itemChip(r.out)}</div><span class="muted" style="text-align:right;white-space:nowrap">${lock ? '🔒 연구' : `분당 ${(t.recipe === rid && lpd ? lpd : S.recipePerMin(rid, def.speed)).toFixed(1)}`}</span></div>`;
     }).join('');
-    const ups = Object.entries(D.MACHINES).filter(([id, m]) => m.type === def.type && id !== t.model);
+    const ups = Object.entries(D.MACHINES).filter(([id, m]) => m.type === def.type && id !== t.model && S.modelUnlocked(s, id));
     if (ups.length) {
       body += `<h3 class="sec">설비 교체</h3>`;
       const refund = Math.round(def.price * D.MACHINE_RULES.sellRate * Math.max(0.3, t.cond / 100));
       body += ups.map(([id, m]) => {
         const cost = Math.max(0, S.buildCost(s, 'machine', id) - refund);
-        return `<div class="card"><div class="row"><div class="grow"><b>${esc(m.name)}</b>${m.auto ? ' <span class="tag ok">작업자 불필요</span>' : ''}<div class="muted">속도 ×${m.speed} · 마모 ×${m.wear}</div></div><button class="btn sm yel" data-a="upgrade" data-v="${id}" ${s.cash < cost ? 'disabled' : ''}>${man(cost)}</button></div></div>`;
+        return `<div class="card"><div class="row"><div class="grow"><b>${esc(m.name)}</b>${m.auto ? ' <span class="tag ok">작업자 불필요</span>' : ''}<div class="muted">속도 ×${m.speed} · 마모 ×${m.wear} · 기본 분당 ${t.recipe ? S.recipePerMin(t.recipe, m.speed).toFixed(1) : '-'}</div></div><button class="btn sm yel" data-a="upgrade" data-v="${id}" ${s.cash < cost ? 'disabled' : ''}>${man(cost)}</button></div></div>`;
       }).join('');
       body += `<div class="muted" style="padding:0 4px">지금 기계를 ${man(refund)}에 팔고 차액만 냅니다</div>`;
     }
@@ -474,6 +525,8 @@ export function createUI(game) {
     'build-done': () => { ui.buildMode = false; game.r.ghost = null; renderBar(); renderBuildHint(); game.save(); },
     tool: (v) => { const p = PALETTE[Number(v)]; ui.tool = { kind: p.kind, model: p.model }; renderBar(); renderBuildHint(); },
     dir: () => { ui.dir = (ui.dir + 1) % 4; renderBuildHint(); },
+    process: (v) => { const back = ui.sheet ? { type: ui.sheet.type, tab: ui.sheet.tab } : null; ui.sheet = { type: 'process', item: v, back }; renderSheet(); },
+    'process-back': () => { const b = ui.sheet.back; ui.sheet = { ...b }; renderSheet(); },
     accept: (v) => { S.acceptOffer(game.s, Number(v)); ordersSig = ''; renderSheet(); renderOrders(); renderBar(); },
     decline: (v) => { S.declineOffer(game.s, Number(v)); renderSheet(); renderBar(); },
     hire: (v) => result(S.hire(game.s, Number(v))),

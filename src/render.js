@@ -1,6 +1,6 @@
 // 탑뷰 공장 바닥 렌더 (캔버스). 시뮬 상태를 읽기만 한다.
 import * as D from './data.js';
-import { DX, DY, tile, machineDef } from './sim.js';
+import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
@@ -249,6 +249,18 @@ export function createRenderer(canvas) {
     ctx.globalAlpha = m.status === 'starved' || m.status === 'no_worker' || m.status === 'no_recipe' ? 0.55 : 1;
     ctx.fillText(type.icon, px + T / 2, py + T / 2 - T * 0.04 + bob);
     ctx.globalAlpha = 1;
+    // 분당 처리량
+    if (m.recipe && !m.broken) {
+      const pm = machinePerMin(s, m);
+      ctx.font = `bold ${Math.max(8, Math.round(T * 0.19))}px sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      const txt = pm > 0 ? `${pm < 10 ? pm.toFixed(1) : Math.round(pm)}/분` : '';
+      if (txt) {
+        const tw = ctx.measureText(txt).width;
+        ctx.fillStyle = 'rgba(0,0,0,.45)'; roundRect(ctx, px + pad + 1, py + pad + 1, tw + 6, T * 0.23, 4); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.fillText(txt, px + pad + 4, py + pad + 2);
+      }
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    }
     // 생산 진행
     if (m.crafting && !m.broken) {
       ctx.strokeStyle = '#7CE0C3'; ctx.lineWidth = Math.max(2, T * 0.06);
@@ -288,7 +300,7 @@ export function createRenderer(canvas) {
       if (need) {
         const sp = itemSprite(need); const sz = T * 0.26;
         ctx.globalAlpha = 0.6 + 0.4 * Math.sin(R.t * 4);
-        ctx.drawImage(sp, px + T * 0.06, py + T * 0.06, sz, sz);
+        ctx.drawImage(sp, px + T * 0.1, py + T * 0.56, sz, sz);
         ctx.globalAlpha = 1;
       }
     }
@@ -302,7 +314,7 @@ export function createRenderer(canvas) {
     ctx.fillStyle = '#F6F5F2'; tri(px + T / 2 + DX[t.dir] * T * 0.36, py + T / 2 + DY[t.dir] * T * 0.36, t.dir, T * 0.09);
     if (t.item) { const sp = itemSprite(t.item); const sz = T * 0.38; ctx.drawImage(sp, px + T / 2 - sz / 2, py + T * 0.18, sz, sz); }
     ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(T * 0.2)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(t.starved ? '돈 없음' : '입고', px + T / 2, py + T * 0.76);
+    ctx.fillText(t.starved ? '돈 없음' : t.on ? `${Math.round(inputPerMin())}/분` : '꺼짐', px + T / 2, py + T * 0.76);
   }
 
   function drawOutput(x, y, s) {
