@@ -3,27 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="theme-color" content="#F6F5F2" />
-  <title>Business Sim</title>
-  <link rel="stylesheet" href="src/ui/style.css?v=8" />
+  <meta name="theme-color" content="#1E2733" />
+  <title>아버지의 공장</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="src/style.css?v=100" />
 </head>
 <body>
   <div id="app" class="app">
-    <header class="hud">
-      <div id="topbar" class="topbar"></div>
-    </header>
-    <div class="body">
-      <main id="main-panel" class="main-panel"></main>
-      <section id="feed" class="feed"></section>
-      <div id="next" class="next"></div>
-      <nav id="tabs" class="tabs"></nav>
-      <div id="overlay" class="overlay hidden">
-        <div id="modal" class="modal hidden"></div>
-        <div id="popup" class="popup hidden"></div>
-      </div>
-    </div>
+    <header id="hud" class="hud"></header>
+    <div id="orders" class="order-strip"></div>
+    <main class="stage">
+      <canvas id="floor"></canvas>
+      <div id="toasts" class="toasts"></div>
+    </main>
+    <nav id="bar" class="bar"></nav>
+    <div id="sheet-wrap" class="sheet-wrap hidden"><div id="sheet" class="sheet"></div></div>
+    <div id="popup-wrap" class="popup-wrap hidden"><div id="popup" class="popup"></div></div>
   </div>
-  <div id="boot" class="boot">불러오는 중…</div>
-  <script type="module" src="src/main.js?v=8"></script>
+  <div id="boot" class="boot">공장 불 켜는 중…</div>
+  <script type="module" src="src/main.js?v=100"></script>
 </body>
 </html>
