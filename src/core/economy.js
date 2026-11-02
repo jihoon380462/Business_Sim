@@ -30,7 +30,13 @@ export function enforceBroke(state) {
   return state;
 }
 
+/** 대출 가능 여부: 사업자(노점 이상) 전용 */
+export function loanUnlocked(state) {
+  return !D.config.loan.requiresBusiness || !!state.business;
+}
+
 export function loanAvailable(state) {
+  if (!loanUnlocked(state)) return 0;
   return Math.max(0, D.config.loan.limit - state.loan.principal);
 }
 

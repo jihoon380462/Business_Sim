@@ -12,11 +12,13 @@ function loanCard(app) {
   const L = app.data.config.loan;
   const avail = core.loanAvailable(s);
   const step = L.step;
-  const canBorrow = avail >= step || (avail > 0 && avail < step);
+  const canBorrow = avail > 0;
   const canRepay = s.loan.principal > 0 && s.money > 0;
+  const unlocked = core.loanUnlocked(s);
   return `
     <h3 class="sec">🏦 대출</h3>
     <div class="card loan">
+      ${unlocked ? '' : '<div class="hint">사업자 대출 — 노점 개업 후 이용 가능</div>'}
       <div class="row">
         <div class="grow"><div class="muted">대출 잔액 / 한도</div><div class="amt num ${s.loan.principal > 0 ? 'expense' : ''}">${won(s.loan.principal)} <span class="muted">/ ${won(L.limit)}</span></div></div>
         <div class="muted">주 이자 ${(L.weeklyInterestRate * 100).toFixed(1)}%</div>

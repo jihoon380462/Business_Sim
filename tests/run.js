@@ -156,13 +156,18 @@ test('상장폐지: 예고 후 가격 0, 보유분 소멸, 매매 불가', () =>
 console.log('대출');
 test('한도 내 대출, 이자 차감, 상환', () => {
   const L = data.config.loan;
-  let s = core.borrow(core.createInitialState(1), { amount: L.limit * 2 });
+  let s = core.createInitialState(1);
+  eq(core.loanAvailable(s), 0, 'no business → no loan');
+  s.money = 3000000;
+  s = core.openBusiness(s, { typeId: 'stall' });
+  s = core.borrow(s, { amount: L.limit * 2 });
   eq(s.loan.principal, L.limit);
   eq(core.loanAvailable(s), 0);
   const m = s.money;
   s = core.setActivity(s, { activityId: 'rest' });
   s = core.advanceWeek(s);
-  eq(s.money, m - data.config.livingCost - Math.round(L.limit * L.weeklyInterestRate));
+  const biz = s.business.lastWeek;
+  eq(s.money, m - data.config.livingCost - Math.round(L.limit * L.weeklyInterestRate) + biz.revenue - biz.materials - biz.labor - biz.fixed - biz.promo);
   s = core.repay(s, { amount: 1000000 });
   eq(s.loan.principal, L.limit - 1000000);
 });

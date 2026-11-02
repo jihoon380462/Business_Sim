@@ -16,6 +16,7 @@
   "loan": {
     "limit": 5000000,
     "weeklyInterestRate": 0.01,
+    "requiresBusiness": true,
     "step": 500000
   },
   "stockFeeRate": 0.005,
