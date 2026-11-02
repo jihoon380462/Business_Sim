@@ -1,6 +1,6 @@
 // 화면 (DOM): HUD · 주문 띠 · 하단 바 · 시트 · 팝업 · 캔버스 입력
-import * as D from './data.js';
-import * as S from './sim.js';
+import * as D from './data.js?v=1.2.1';
+import * as S from './sim.js?v=1.2.1';
 
 // ---------- 표기 ----------
 export function man(n, { sign = false } = {}) {
@@ -504,6 +504,9 @@ export function createUI(game) {
             <div class="kv"><span>💰 월말</span><span>10일마다 월급·유지비·이자</span></div></div>
           <div class="muted" style="text-align:center">🎯 목표: 완성차 직납을 따내고 빚을 모두 갚기</div>
           <button class="btn yel full" data-a="pp-ok">공장 문 열기</button></div>`;
+    } else if (p.type === 'migrate') {
+      html = `<div class="pp-hero"><div class="i">🆕</div><h2>초반이 새로워졌어요</h2><p>첫날 주문, 할 일 안내, 용접 병목이 생겼습니다.\n예전 저장으로는 이 변화가 안 보여요.</p></div>
+        <div class="pp-body"><button class="btn yel full" data-a="newgame-now">새 게임으로 시작 (추천)</button><button class="btn ghost full" data-a="pp-ok">지금 공장 계속하기</button></div>`;
     } else if (p.type === 'month') {
       const r = p.rec;
       html = `<div class="pp-hero"><div class="i">${r.net >= 0 ? '📗' : '📕'}</div><h2>${esc(r.label)} 결산</h2><p class="${r.net >= 0 ? 'pos' : 'neg'}" style="font-family:'Do Hyeon';font-size:28px;margin:0">${man(r.net, { sign: true })}</p></div>

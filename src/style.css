@@ -220,3 +220,6 @@ button:disabled { opacity: .4; cursor: default; }
 .qrow:last-child { border-bottom: 0; }
 .qrow.done { color: var(--sub); text-decoration: line-through; }
 .qrow.now { font-weight: 800; }
+
+.update-bar { position: absolute; left: 10px; right: 10px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 40; background: var(--teal); color: #fff; font-weight: 800; border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow); font-size: 14px; }
+.update-bar small { font-weight: 500; opacity: .85; }
