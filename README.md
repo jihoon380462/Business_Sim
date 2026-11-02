@@ -8,7 +8,9 @@
 
 | 문서 | 내용 |
 |---|---|
-| [docs/GDD.md](docs/GDD.md) | 전체 비전 (성장 단계, 시스템, 연애, 엔딩) |
+| [docs/GDD.md](docs/GDD.md) | 전체 비전 — 무엇을 느끼게 할 것인가 |
+| [docs/SYSTEMS.md](docs/SYSTEMS.md) | **시스템 뼈대** — 부품과 데이터 틀, 콘텐츠 슬롯 현황 |
+| [docs/CONTENT_TEMPLATES.md](docs/CONTENT_TEMPLATES.md) | 콘텐츠 추가 양식 (활동·업종·인물·이벤트…) |
 | [docs/SCOPE_V1.md](docs/SCOPE_V1.md) | 1차 개발 범위 — 이것만 만든다 |
 | [docs/HANDOFF_V1.md](docs/HANDOFF_V1.md) | 개발 담당 착수 지시서 |
 | [docs/UI_SPEC_V1.md](docs/UI_SPEC_V1.md) | V1 화면 명세 (레퍼런스: `art/reference/`) |

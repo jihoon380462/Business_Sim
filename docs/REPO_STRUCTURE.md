@@ -56,6 +56,8 @@ Business_Sim/
 │   └── review/               ← [사용자] GPT 결과물 검수 대기
 ├── docs/                     ← [기획]
 │   ├── GDD.md                ← 전체 비전
+│   ├── SYSTEMS.md            ← 시스템 뼈대·데이터 틀·콘텐츠 슬롯
+│   ├── CONTENT_TEMPLATES.md  ← 콘텐츠 추가 양식
 │   ├── SCOPE_V1.md           ← 1차 범위
 │   ├── HANDOFF_V1.md         ← 개발 방 착수 지시서
 │   ├── UI_SPEC_V1.md         ← 화면 명세

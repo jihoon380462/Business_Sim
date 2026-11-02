@@ -12,9 +12,10 @@
 1. `docs/SCOPE_V1.md` — **이번에 만들 것의 전부.** 여기 없는 기능은 만들지 않는다.
 2. `docs/UI_SPEC_V1.md` — 화면별 레이아웃·컨트롤·상태. 레퍼런스 이미지는 `art/reference/REF-main-M.png`와 `art/reference/screens/`
 3. `docs/REPO_STRUCTURE.md` — 폴더 구조, core/ui 분리 규칙, 데이터 규칙, 브랜치 규칙
-4. `docs/GDD.md` — 전체 비전. V1 설계가 V2 이후를 막지 않도록 참고만 한다. V1에 넣지 않는다.
-5. `docs/REQUESTS.md` — 열린 요청이 있으면 확인
-6. `docs/DECISIONS.md` — 기획이 이미 확정한 결정 목록
+4. `docs/SYSTEMS.md` — 시스템 뼈대. **V1 구현이 이 틀을 벗어나지 않게**(사업체는 배열, 활동은 슬롯 필드, 이벤트는 조건식 등). 콘텐츠는 넣지 않는다.
+5. `docs/GDD.md` — 전체 비전. 참고만.
+6. `docs/REQUESTS.md` — 열린 요청이 있으면 확인
+7. `docs/DECISIONS.md` — 기획이 이미 확정한 결정 목록
 
 ## 3. 기술 조건
 - 순수 HTML + CSS + JS. 빌드 도구·프레임워크 없음. 로컬 서버(`python -m http.server`)나 GitHub Pages로 열면 바로 실행. (ES 모듈·fetch 때문에 Chrome에서 file:// 더블클릭은 안 됨)
