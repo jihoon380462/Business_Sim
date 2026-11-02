@@ -1,5 +1,6 @@
 import * as core from '../../core/index.js';
 import { weekLabel } from '../format.js';
+import { APP_VERSION, APP_BUILD } from '../../version.js';
 
 export const title = () => '⚙️ 설정';
 
@@ -18,7 +19,7 @@ export function render(app) {
       <div class="set-row off"><span class="lbl">사운드</span><button class="toggle" disabled></button></div>
       <div class="set-row ${s.goal.lastReport ? '' : 'off'}"><span class="lbl">최근 결산</span><button class="btn sm auto plain" data-action="set.report" ${s.goal.lastReport ? '' : 'disabled'}>최근 결산 보기</button></div>
     </div>
-    <div class="hint">V1 프로토타입 · 아트는 플레이스홀더</div>`;
+    <div class="hint">V1 프로토타입 · 아트는 플레이스홀더<br />버전 <b>v${APP_VERSION}</b> · 빌드 ${APP_BUILD}</div>`;
 }
 
 export const actions = {
