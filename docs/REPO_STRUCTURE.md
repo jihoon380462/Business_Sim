@@ -49,6 +49,7 @@ Business_Sim/
 ├── art/
 │   ├── STYLE_GUIDE.md        ← [기획] 아트팀(GPT) 고정 규칙
 │   ├── ORDER_TEMPLATE.md     ← [기획] 주문서 양식
+│   ├── reference/            ← [기획] 확정 레퍼런스 이미지 (주문 시 항상 첨부)
 │   ├── orders/               ← [기획] ART-001.md … 주문서 (개발이 필요 에셋 목록을 REQUESTS에 적으면 기획이 주문서로 작성)
 │   └── review/               ← [사용자] GPT 결과물 검수 대기
 ├── docs/                     ← [기획]
