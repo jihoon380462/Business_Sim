@@ -5,8 +5,8 @@
 
 ## 1. 스타일
 
-- **기준 이미지: `art/reference/REF-main-03-base.png`.** 모든 주문에 이 이미지를 함께 첨부한다. 글로 설명하는 것보다 이 한 장이 우선.
-- **한국 웹툰풍 선화 + 셀 셰이딩 일러스트.** 선명한 선화, 2단계 명암, 그라데이션 최소. 배경은 밝은 낮 톤, 벚꽃·거리 등 한국 도심.
+- **기준 이미지: `art/reference/REF-main-02-base.png`.** 모든 주문에 이 이미지를 함께 첨부한다. 글로 설명하는 것보다 이 한 장이 우선.
+- **셀 셰이딩 일러스트** (기준 이미지 02의 그림체). 깔끔한 선화, 2단계 명암, 그라데이션 최소. 배경은 따뜻한 낮 톤의 한국 골목·가게.
   - 픽셀아트는 GPT가 격자를 못 맞춰 일관성이 깨지므로 제외. (카이로소프트 "느낌"은 UI와 주 단위 진행 연출로 낸다)
   - **아기자기·SD·치비 스타일 금지.** 연애 콘텐츠가 들어가므로 캐릭터는 성인 분위기로.
 - 차분하고 세련된 톤. 주인공과 상대 캐릭터는 20대 성인.
@@ -29,14 +29,14 @@
 
 ## 3. 팔레트
 
-- UI·아이콘은 아래 기준 (기준 이미지 03의 팔레트). 캐릭터·배경 일러스트는 팔레트 자유(단, 채도를 과하게 높이지 않음).
+- UI·아이콘은 아래 기준 (기준 이미지 02의 팔레트). 캐릭터·배경 일러스트는 팔레트 자유(단, 채도를 과하게 높이지 않음).
 
 | 이름 | HEX | 용도 |
 |---|---|---|
-| 블루 | `#3F6AD8` | 기본 포인트: 선택된 탭·버튼·현재 상태 강조 |
-| 그린 | `#2E9E6B` | 수입, 상승, 긍정 |
-| 레드 | `#D9534F` | 지출, 하락, 경고 |
-| 앰버 | `#E9B44C` | 돈 아이콘, 체력 게이지, 주의 |
+| 틸 | `#2A9D8F` | 기본 포인트: 선택된 탭·재생 버튼·주 진행 게이지·현재 상태 강조 |
+| 그린 | `#2E9E6B` | 수입 금액 텍스트, 상승 |
+| 레드 | `#D9534F` | 지출 금액 텍스트, 하락, 경고 |
+| 앰버 | `#E9B44C` | 체력 게이지, 생활비·돈 아이콘, 주의 |
 | 차콜 | `#22262E` | 본문 텍스트, 아이콘 기본색 |
 | 오프화이트 | `#F6F5F2` | 카드 배경, 창 배경 |
 | 라이트그레이 | `#E6E8EC` | 게이지 빈 칸, 구분선, 비활성 |
@@ -58,7 +58,7 @@
 ## 5. 아이콘 규칙
 
 - 정사각형 안에 **대상 하나만**, 여백 10%.
-- 탭 아이콘은 단색 실루엣(차콜), 선택 시 블루. 메뉴·항목 아이콘은 연한 색 배경의 둥근 사각형 안에 넣는다(기준 이미지의 피드 아이콘 참고).
+- 탭 아이콘은 단색 실루엣(차콜), 선택 시 틸 + 아래 밑줄. 메뉴·항목 아이콘은 연한 색 배경의 둥근 사각형 안에 넣는다(기준 이미지의 피드 아이콘 참고).
 - 같은 분류 아이콘은 같은 시점(예: 사업체 건물은 전부 정면 약간 위).
 
 ## 6. GPT 고정 프롬프트
@@ -66,9 +66,9 @@
 매 주문의 맨 앞에 그대로 붙인다. `[ ]` 부분만 주문서 내용으로 채운다.
 
 ```
-첨부한 기준 이미지(REF-main-03-base.png)와 같은 그림체·같은 인물·같은 UI 톤으로 그려 줘.
-Korean webtoon-style clean lineart with cel shading, two-step shading, minimal gradients,
-bright daytime tone, adult characters in their 20s with realistic 6-7 head proportions.
+첨부한 기준 이미지(REF-main-02-base.png)와 같은 그림체·같은 인물·같은 UI 톤으로 그려 줘.
+Clean anime cel-shaded illustration, two-step shading, minimal gradients,
+warm daytime tone, adult characters in their 20s with realistic 6-7 head proportions.
 No chibi, no super-deformed, no cute mascot style. Korean modern-day setting.
 Absolutely no text, letters, or numbers in the image. No nudity or suggestive content.
 [배경: transparent background / solid cream background]
