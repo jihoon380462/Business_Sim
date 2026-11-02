@@ -249,7 +249,7 @@ export function createRenderer(canvas) {
     // 아이콘 (작동 중이면 살짝 흔들림)
     const bob = working ? Math.sin(R.t * 14 + x * 3 + y) * T * 0.025 : 0;
     ctx.font = `${Math.round(T * 0.42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.globalAlpha = m.status === 'starved' || m.status === 'no_worker' || m.status === 'no_recipe' ? 0.55 : 1;
+    ctx.globalAlpha = ['starved', 'no_worker', 'no_recipe', 'off'].includes(m.status) ? 0.55 : 1;
     ctx.fillText(type.icon, px + T / 2, py + T / 2 - T * 0.04 + bob);
     ctx.globalAlpha = 1;
     // 분당 처리량
@@ -286,7 +286,7 @@ export function createRenderer(canvas) {
       ctx.fillRect(wx - T * 0.12, wy - 1, T * 0.24, T * 0.035);
     }
     // 배지
-    const badge = m.broken ? (m.repairLeft > 0 ? '🛠️' : '⚠️') : m.serviceLeft > 0 ? '🛠️' : m.status === 'no_worker' ? '👷' : m.status === 'no_recipe' ? '❔' : m.status === 'blocked' ? '⏸' : null;
+    const badge = m.broken ? (m.repairLeft > 0 ? '🛠️' : '⚠️') : m.serviceLeft > 0 ? '🛠️' : m.status === 'off' ? '⏹' : m.status === 'no_worker' ? '👷' : m.status === 'no_recipe' ? '❔' : m.status === 'blocked' ? '⏸' : null;
     if (badge) {
       const bx = px + T * 0.8, by = py + T * 0.18;
       ctx.fillStyle = m.broken ? '#D9534F' : 'rgba(255,255,255,.92)';

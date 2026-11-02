@@ -143,6 +143,7 @@ export const LOGISTICS = {
   outputCost: 1500000,
   inputInterval: 0.9,         // 입고구 1로트 배출 간격(초)
   removeRefund: 0.5,
+  dumpRate: 0.4,             // 남는 재고 처분 시 단가 비율
   outputBufferLots: 6,        // 주문량보다 이만큼 더 받으면 출하구가 받기를 멈춤(라인이 멈춤)
 };
 

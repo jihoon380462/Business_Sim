@@ -204,17 +204,46 @@ export function itemUnlocked(s, item) {
 // ============================================================ 직원
 export function assignWorkers(s) {
   for (const w of s.workers) w.machine = null;
-  const ms = machinesList(s).filter((m) => !machineDef(m).auto);
-  for (const m of ms) m.worker = null;
-  // 느린 공정(레시피 시간이 긴 기계)에 숙련공 우선
-  ms.sort((a, b) => (b.recipe ? D.RECIPES[b.recipe].time / machineDef(b).speed : 0) - (a.recipe ? D.RECIPES[a.recipe].time / machineDef(a).speed : 0) || a.id - b.id);
+  const all = machinesList(s).filter((m) => !machineDef(m).auto);
+  for (const m of all) m.worker = null;
+  const ms = all.filter((m) => m.recipe && m.enabled !== false).sort((a, b) => a.id - b.id);
+  // 1순위: 레시피마다 한 대씩 (라인이 끊기지 않게), 2순위: 같은 레시피의 추가 기계
+  const seen = new Set();
+  const first = [], extra = [];
+  for (const m of ms) { if (seen.has(m.recipe)) extra.push(m); else { seen.add(m.recipe); first.push(m); } }
+  // 같은 순위 안에서는 느린 공정(병목)에 숙련공
+  const slow = (m) => D.RECIPES[m.recipe].time / machineDef(m).speed;
+  first.sort((a, b) => slow(b) - slow(a) || a.id - b.id);
+  extra.sort((a, b) => slow(b) - slow(a) || a.id - b.id);
   const pool = s.workers.filter((w) => !w.advisor).sort((a, b) => b.skill - a.skill);
-  for (const m of ms) {
-    if (!m.recipe) continue;
+  for (const m of [...first, ...extra]) {
     const w = pool.shift();
     if (!w) break;
     m.worker = w.id; w.machine = m.id;
   }
+}
+
+/** 기계 가동/정지. 정지하면 재료를 받지 않고 작업자도 빠진다 */
+export function toggleMachine(s, x, y) {
+  const m = tile(s, x, y);
+  if (!m || m.k !== 'machine') return fail('');
+  m.enabled = m.enabled === false;
+  if (m.enabled === false) { m.crafting = false; m.prog = 0; }
+  assignWorkers(s);
+  return okr(m.enabled);
+}
+
+/** 주문에 안 쓰이는 남는 재고를 헐값에 처분 */
+export function surplusLots(s, item) { return Math.max(0, (s.inventory[item] || 0) - demandLots(s, item)); }
+export function dumpValue(s, item) { return Math.round(surplusLots(s, item) * D.ITEMS[item].lot * D.ITEMS[item].unitPrice * D.LOGISTICS.dumpRate); }
+export function dumpStock(s, item) {
+  const n = surplusLots(s, item);
+  if (!n) return fail('남는 재고 없음');
+  const v = dumpValue(s, item);
+  s.inventory[item] -= n;
+  s.cash += v; s.month.revenue += v;
+  log(s, '🏷️', `${D.ITEMS[item].name} 남는 재고 ${n}상자 헐값 처분`, v);
+  return okr(v);
 }
 
 function makeCandidate(s) {
@@ -525,7 +554,7 @@ function accepts(s, x, y, it, travelDir, dryRun = false) {
     return true;
   }
   if (t.k === 'machine') {
-    if (!t.recipe) return false;
+    if (!t.recipe || t.enabled === false) return false;
     const need = D.RECIPES[t.recipe].in[it];
     if (!need) return false;
     if ((t.inBuf[it] || 0) >= need * D.MACHINE_RULES.inBufferMult) return false;
@@ -620,6 +649,7 @@ function simulateMachine(s, m, x, y, dt) {
     if (accepts(s, x + DX[m.dir], y + DY[m.dir], m.outBuf[0], m.dir)) m.outBuf.shift();
   }
   if (!m.recipe) { m.status = 'no_recipe'; return; }
+  if (m.enabled === false) { m.status = 'off'; return; }
   if (!def.auto && !m.worker) { m.status = 'no_worker'; return; }
   const r = D.RECIPES[m.recipe];
   if (!m.crafting) {

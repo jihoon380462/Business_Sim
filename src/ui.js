@@ -19,7 +19,7 @@ const tierTag = (t) => `<span class="tag t${t}">${D.TIERS[t].name}</span>`;
 const DIR_ARROW = ['→', '↓', '←', '↑'];
 const STATUS = {
   work: '가동 중', starved: '재료 대기', blocked: '출구 막힘 (앞 칸이 꽉 참)', no_worker: '작업자 없음', no_recipe: '레시피를 고르세요',
-  broken: '고장', service: '정비 중', idle: '대기',
+  broken: '고장', service: '정비 중', idle: '대기', off: '정지됨 (재료를 받지 않고, 작업자도 다른 기계로 감)',
 };
 
 export function createUI(game) {
@@ -437,7 +437,10 @@ export function createUI(game) {
     if (t.k === 'output') {
       const finals = Object.entries(s.inventory).filter(([, n]) => n > 0);
       return shell('📤 출하구', `<div class="card">완성 부품을 받아 창고에 쌓습니다. 주문 물량을 다 채우면 퇴근 때 트럭이 실어 가요.<br/><span class="muted">주문보다 ${D.LOGISTICS.outputBufferLots}상자 넘게 쌓이면 더 받지 않아 라인이 멈춥니다 (원자재 낭비 방지).</span></div>
-        <h3 class="sec">창고</h3><div class="card">${finals.length ? finals.map(([it, n]) => `<div class="kv"><span>${itemChip(it)}</span><b class="dh">${n}상자 <span class="muted">/ 주문 ${S.demandLots(s, it)}</span></b></div>`).join('') : '<div class="muted">비어 있음</div>'}</div>
+        <h3 class="sec">창고</h3><div class="card">${finals.length ? finals.map(([it, n]) => {
+          const extra = S.surplusLots(s, it);
+          return `<div class="kv"><span>${itemChip(it)}</span><b class="dh">${n}상자 <span class="muted">/ 주문 ${S.demandLots(s, it)}</span></b></div>${extra ? `<button class="btn sm ghost full" style="margin:4px 0 6px" data-a="dump" data-v="${it}">남는 ${extra}상자 헐값 처분 (+${man(S.dumpValue(s, it))})</button>` : ''}`;
+        }).join('') : '<div class="muted">비어 있음</div>'}</div>
         <div class="btns"><button class="btn ghost sm" data-a="del">🗑️ 철거</button></div>`);
     }
     // 기계
@@ -481,6 +484,7 @@ export function createUI(game) {
       }).join('');
       body += `<div class="muted" style="padding:0 4px">지금 기계를 ${man(refund)}에 팔고 차액만 냅니다</div>`;
     }
+    body += `<button class="btn ${t.enabled === false ? 'teal' : 'ghost'} sm full" data-a="machine-toggle">${t.enabled === false ? '▶ 다시 가동' : '⏸ 이 기계 정지 (작업자를 다른 기계로)'}</button>`;
     body += common;
     return shell(`${type.icon} ${type.name}`, body);
   }
@@ -581,6 +585,8 @@ export function createUI(game) {
     rot: () => { S.rotate(game.s, ui.sheet.x, ui.sheet.y); renderSheet(); },
     del: () => { const r = S.removeAt(game.s, ui.sheet.x, ui.sheet.y); if (r.ok) toastNow(`철거 +${man(r.msg)}`); closeSheet(); },
     raw: (v) => { S.setInputItem(game.s, ui.sheet.x, ui.sheet.y, v); renderSheet(); },
+    'machine-toggle': () => { S.toggleMachine(game.s, ui.sheet.x, ui.sheet.y); renderSheet(); },
+    dump: (v) => result(S.dumpStock(game.s, v), (r) => `재고 처분 +${man(r.msg)}`),
     'input-toggle': () => { S.toggleInput(game.s, ui.sheet.x, ui.sheet.y); renderSheet(); },
     recipe: (v) => { S.setRecipe(game.s, ui.sheet.x, ui.sheet.y, v); renderSheet(); },
     repair: () => result(S.repair(game.s, ui.sheet.x, ui.sheet.y), () => '수리 시작'),

@@ -121,6 +121,34 @@ test('숙련공은 병목 기계에 배치', () => {
   eq(S.workerOf(s, weld).name, '김반장');
 });
 
+test('작업자 부족해도 라인이 끊기지 않게: 같은 레시피 둘째 기계보다 프레스가 먼저', () => {
+  const s = fresh(1); s.cash = 1e9;
+  S.build(s, 3, 5, 'machine', { model: 'weld_old', dir: 0 }); S.setRecipe(s, 3, 5, 'bracket');
+  ok(S.tile(s, 2, 2).worker, 'press manned');
+  ok(S.tile(s, 5, 2).worker || S.tile(s, 3, 5).worker, 'one welder manned');
+  ok(!(S.tile(s, 5, 2).worker && S.tile(s, 3, 5).worker), 'only two workers');
+});
+test('기계 정지: 재료 안 받고 작업자 빠짐, 다시 가동', () => {
+  const s = fresh(1);
+  const w = S.tile(s, 5, 2);
+  S.toggleMachine(s, 5, 2);
+  eq(w.enabled, false); eq(w.worker, null);
+  runSec(s, 3);
+  eq(w.status, 'off');
+  S.toggleMachine(s, 5, 2);
+  ok(w.enabled && w.worker);
+});
+test('남는 재고 처분: 주문 몫은 남기고 40% 가격', () => {
+  const s = fresh(1);
+  s.inventory.bracket = 100;
+  const demand = S.demandLots(s, 'bracket');
+  const c = s.cash;
+  const r = S.dumpStock(s, 'bracket');
+  ok(r.ok);
+  eq(s.inventory.bracket, demand);
+  eq(s.cash - c, Math.round((100 - demand) * 100 * 1100 * D.LOGISTICS.dumpRate));
+});
+
 console.log('경영');
 test('주문 수락 → 출하 → 현금(3차)/외상(2차)', () => {
   const s = fresh(1); s.orders = [];
