@@ -52,7 +52,11 @@ function boot() {
     game.r.draw(s, dt, game.ui);
     game.view.pumpToasts();
     hudTimer += dt;
-    if (hudTimer > 0.2) { hudTimer = 0; game.view.renderHud(); game.view.renderOrders(); }
+    if (hudTimer > 0.2) {
+      hudTimer = 0;
+      if (S.checkQuest(s) && game.ui.sheet?.type === 'quest') game.view.renderSheet();
+      game.view.renderHud(); game.view.renderOrders(); game.view.renderQuest();
+    }
     if (s.popups.length !== lastPopups) {
       lastPopups = s.popups.length;
       game.view.renderPopup(); game.view.renderBar();

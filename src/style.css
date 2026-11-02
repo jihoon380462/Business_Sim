@@ -110,7 +110,7 @@ button:disabled { opacity: .4; cursor: default; }
 .tool.danger.on { border-color: var(--red); background: var(--red-weak); }
 .bar > button.done-btn, .done-btn { flex: none; width: 64px; border-radius: 12px; background: var(--navy); color: #fff; font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
 .done-btn .ico { font-size: 18px; }
-.build-hint { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(30,39,51,.9); color: #fff; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; pointer-events: auto; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+.build-hint { z-index: 6; position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: rgba(30,39,51,.9); color: #fff; font-size: 12.5px; padding: 6px 12px; border-radius: 999px; pointer-events: auto; display: flex; gap: 8px; align-items: center; white-space: nowrap; }
 .build-hint button { background: var(--yellow); color: var(--navy); border-radius: 999px; padding: 3px 10px; font-weight: 800; }
 
 /* ---------- 시트 ---------- */
@@ -208,3 +208,15 @@ button:disabled { opacity: .4; cursor: default; }
 .mtable td:last-child { text-align: right; font-family: "Do Hyeon", sans-serif; font-size: 15.5px; }
 .mtable tr.tot td { border-top: 2px solid var(--ink); border-bottom: 0; font-size: 15px; font-weight: 800; }
 .mtable tr.tot td:last-child { font-size: 19px; }
+
+/* 할 일 */
+.quest-pill { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 5; display: flex; align-items: center; gap: 8px; background: var(--yellow); color: var(--navy); border-radius: 14px; padding: 8px 12px; box-shadow: var(--shadow); font-weight: 800; text-align: left; animation: tin .25s ease-out; }
+.quest-pill.low { top: 52px; }
+.quest-pill .qn { font-size: 11px; background: var(--navy); color: var(--yellow); border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.quest-pill .qt { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quest-pill .qr { font-size: 12px; white-space: nowrap; }
+.quest-pill .qm { font-size: 18px; }
+.qrow { display: flex; gap: 8px; align-items: center; padding: 6px 0; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+.qrow:last-child { border-bottom: 0; }
+.qrow.done { color: var(--sub); text-decoration: line-through; }
+.qrow.now { font-weight: 800; }

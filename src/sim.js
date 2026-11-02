@@ -51,6 +51,9 @@ export function createGame(seed = Date.now()) {
   s.flags.unlocked = {};
   for (const type of Object.keys(D.UNLOCKS.types)) if (typeUnlocked(s, type)) s.flags.unlocked[type] = true;
   startMonth(s, true);
+  s.quest = 0;
+  // 첫날부터 고를 주문 두 개
+  for (let i = 0; i < 2; i++) { const o = makeOffer(s, 0, 'bracket', 0.6 + i * 0.3); o.expires = absDay(s) + 3; s.offers.push(o); }
   return s;
 }
 
@@ -358,6 +361,7 @@ export function upgradeMachine(s, x, y, model) {
 export function acceptOffer(s, offerId) {
   const i = s.offers.findIndex((o) => o.id === offerId);
   if (i < 0) return fail('');
+  s.flags.acceptedAny = true;
   const o = s.offers.splice(i, 1)[0];
   s.orders.push({ ...o, dueDay: absDay(s) + o.dueDays, acceptedDay: absDay(s) });
   return okr();
@@ -710,6 +714,7 @@ function shipOrders(s, today) {
       if (o.tier >= 3) unlock(s, 'tier3');
       s.flags.shippedItems = s.flags.shippedItems || {};
       s.flags.shippedItems[o.item] = true;
+      s.flags.shippedCount = (s.flags.shippedCount || 0) + 1;
       if (Object.keys(s.flags.shippedItems).length >= 2) unlock(s, 'second_line');
       checkEnding(s);
     } else if (late > D.OFFERS.cancelAfterLateDays) {
@@ -887,4 +892,34 @@ export function deserialize(json) {
     s.fx = []; s.toasts = [];
     return s;
   } catch { return null; }
+}
+
+// ============================================================ 할 일 (퀘스트)
+export function currentQuest(s) { return D.QUESTS[s.quest ?? D.QUESTS.length] || null; }
+function questDone(s, id) {
+  const ms = machinesList(s);
+  switch (id) {
+    case 'accept': return !!s.flags.acceptedAny;
+    case 'split': return ms.filter((m) => m.recipe === 'bracket').length >= 2;
+    case 'staff': return ms.every((m) => !m.recipe || machineDef(m).auto || m.worker) && s.workers.length >= 3;
+    case 'ship': return (s.flags.shippedCount || 0) >= 1;
+    case 'month': return s.history.length >= 1;
+    case 'product': return Object.keys(s.flags.shippedItems || {}).length >= 2;
+    case 'tier1': return tierUnlocked(s, 1);
+    case 'iso': return !!s.certs.iso;
+    default: return false;
+  }
+}
+/** 진행 중인 할 일이 끝났는지 확인하고 다음으로 넘긴다 (여러 개가 한꺼번에 끝날 수도 있음) */
+export function checkQuest(s) {
+  if (s.quest == null) s.quest = 0;
+  let done = null;
+  while (s.quest < D.QUESTS.length && questDone(s, D.QUESTS[s.quest].id)) {
+    const q = D.QUESTS[s.quest];
+    if (q.reward) { s.cash += q.reward; log(s, '🎁', `할 일 보상: ${q.title}`, q.reward); }
+    toast(s, '✅', `할 일 완료: ${q.title}${q.reward ? ` (+${Math.round(q.reward / 10000)}만)` : ''}`);
+    s.quest += 1;
+    done = q;
+  }
+  return done;
 }

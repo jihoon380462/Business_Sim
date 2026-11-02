@@ -24,10 +24,12 @@ export function createRenderer(canvas) {
     const T = Math.floor(Math.min((R.w - pad * 2) / s.floor.cols, 64));
     if (T !== R.T) { R.T = T; R.sprites.clear(); }
     R.ox = Math.round((R.w - T * s.floor.cols) / 2);
+    const top = R.topInset || 0;
+    const avail = R.h - top;
     const contentH = T * s.floor.rows + pad * 2;
-    R.maxScroll = Math.max(0, contentH - R.h);
+    R.maxScroll = Math.max(0, contentH - avail);
     R.scrollY = Math.max(0, Math.min(R.maxScroll, R.scrollY));
-    R.oy = contentH < R.h ? Math.round((R.h - T * s.floor.rows) / 2) : pad - R.scrollY;
+    R.oy = top + (contentH < avail ? Math.round((avail - T * s.floor.rows) / 2) : pad - R.scrollY);
   };
 
   R.toTile = (s, px, py) => {
@@ -80,6 +82,7 @@ export function createRenderer(canvas) {
   // ---------- 그리기 ----------
   R.draw = (s, dt, ui) => {
     R.t += dt;
+    R.topInset = (s.quest != null && s.quest < D.QUESTS.length ? 52 : 0) + (ui.buildMode ? 44 : 0);
     R.layout(s);
     const { T } = R;
     ctx.setTransform(R.dpr, 0, 0, R.dpr, 0, 0);

@@ -1,6 +1,6 @@
 // 아버지의 공장 — 밸런스 데이터. 숫자는 여기서만 바꾼다.
 
-export const VERSION = '1.1.0';
+export const VERSION = '1.2.0';
 export const SAVE_KEY = 'fathers_factory_save_v1';
 
 // ---------- 시간 ----------
@@ -60,7 +60,7 @@ export const RECIPES = {
   blank_d:   { machine: 'lathe',    in: { bar: 1 },                   out: 'blank_d',   time: 3.0, defect: 0.012 },
   blank_g:   { machine: 'lathe',    in: { bar: 1 },                   out: 'blank_g',   time: 2.6, defect: 0.014 },
   housing_b: { machine: 'lathe',    in: { bar: 2 },                   out: 'housing_b', time: 4.0, defect: 0.015, ev: true },
-  bracket:   { machine: 'weld',     in: { panel: 1 },                 out: 'bracket',   time: 2.4, defect: 0.015 },
+  bracket:   { machine: 'weld',     in: { panel: 1 },                 out: 'bracket',   time: 3.6, defect: 0.015 },
   seat_raw:  { machine: 'weld',     in: { panel: 2 },                 out: 'seat_raw',  time: 3.2, defect: 0.016 },
   shell:     { machine: 'weld',     in: { panel: 2 },                 out: 'shell',     time: 3.0, defect: 0.016 },
   case_b:    { machine: 'weld',     in: { panel: 3 },                 out: 'case_b',    time: 4.0, defect: 0.018, ev: true },
@@ -117,7 +117,7 @@ export const UNLOCKS = {
     weld_robot: { cert: 'iso', hint: 'ISO 9001 인증' },
     assembly_robot: { cert: 'iatf', hint: 'IATF 16949 인증' },
   },
-  split: { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
+  split: null,
 };
 
 export const MACHINE_RULES = {
@@ -241,3 +241,24 @@ export const ACHIEVEMENTS = {
   tier3:        { icon: '🏆', name: '완성차 직납' },
   debt_free:    { icon: '🕊️', name: '빚 청산' },
 };
+
+// ---------- 할 일 (초반 안내 퀘스트) ----------
+// check 는 sim.js 의 questDone 에서 id 로 판정
+export const QUESTS = [
+  { id: 'accept',  icon: '📋', title: '주문 받아 오기', reward: 0,
+    text: '아버지 단골(대성산업) 주문만으로는 매달 적자예요.\n📋 수주 → 새 주문에서 하나 골라 [수락]을 누르세요.\n"약 N일이면 완료"가 납기보다 짧은 주문이 안전해요.' },
+  { id: 'split',   icon: '🔀', title: '병목 풀기', reward: 3000000,
+    text: '프레스는 분당 22상자를 찍는데 용접기는 14상자밖에 못 해서, 용접기 앞에 패널이 밀려 있어요.\n🏗️ 건설 → 🔥 용접기를 하나 더 놓고, 🔀 분배기로 패널을 두 대에 나눠 주세요.\n(예: 프레스 오른쪽 벨트 칸을 분배기로 바꾸고, 아래로 벨트 → 용접기 → 출하구)' },
+  { id: 'staff',   icon: '👷', title: '새 기계에 사람 붙이기', reward: 0,
+    text: '새 용접기 위에 👷 표시가 있으면 사람이 없어 멈춰 있는 거예요.\n👷 직원 → 지원자 중 한 명을 [채용]하세요. 숙련공은 느린 기계에 자동으로 배치돼요.' },
+  { id: 'ship',    icon: '🚚', title: '첫 출하', reward: 0,
+    text: '출하구에 주문 물량이 다 모이면 그날 퇴근할 때 트럭이 실어 가요.\n위쪽 주문 띠의 막대가 다 차는지 지켜보세요. 속도 ▶▶를 눌러도 돼요.' },
+  { id: 'month',   icon: '💰', title: '첫 월말 버티기', reward: 0,
+    text: '10일째 퇴근하면 월급·유지비·이자가 한꺼번에 나가요.\n결산표에서 어디서 돈이 새는지 확인해 보세요.' },
+  { id: 'product', icon: '🔩', title: '두 번째 제품', reward: 5000000,
+    text: '선반이 풀리면 강봉으로 볼트를, 사출기로는 클립을 만들 수 있어요.\n수주 카드에서 제품을 누르면 공정도가 나와요. 새 라인을 깔고 브라켓 말고 다른 제품을 출하해 보세요.' },
+  { id: 'tier1',   icon: '🤝', title: '2차 협력사 뚫기', reward: 0,
+    text: '3차 협력사 신뢰가 60이 되면 2차 협력사 주문이 들어와요. 납기를 잘 지키면 신뢰가 올라요.\n열처리로가 풀리면 브레이크 디스크·기어도 만들 수 있어요.' },
+  { id: 'iso',     icon: '📜', title: 'ISO 9001 인증', reward: 0,
+    text: '🏢 경영 → 인증. 지난달 불량률 3% 이하 + 3,000만원.\n인증을 따면 1차 협력사·도장·조립·로봇이 열려요.' },
+];

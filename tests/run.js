@@ -178,11 +178,11 @@ test('증축: 바닥 넓어지고 기존 배치 유지', () => {
 test('설비 해금: 처음엔 프레스·용접만, 신뢰·인증으로 풀린다', () => {
   const s = fresh(1); s.cash = 1e9;
   ok(S.modelUnlocked(s, 'press_old') && S.modelUnlocked(s, 'weld_old'));
-  ok(!S.modelUnlocked(s, 'lathe_old') && !S.modelUnlocked(s, 'heat') && !S.splitUnlocked(s));
+  ok(!S.modelUnlocked(s, 'lathe_old') && !S.modelUnlocked(s, 'heat') && S.splitUnlocked(s), 'splitter from start');
   ok(!S.build(s, 0, 8, 'machine', { model: 'lathe_old' }).ok, 'locked build refused');
   s.rep[0] = 60;
   const fresh2 = S.checkUnlocks(s);
-  ok(fresh2.length >= 2 && S.modelUnlocked(s, 'lathe_old') && S.splitUnlocked(s) && S.modelUnlocked(s, 'heat'));
+  ok(fresh2.length >= 2 && S.modelUnlocked(s, 'lathe_old') && S.modelUnlocked(s, 'heat'));
   ok(!S.modelUnlocked(s, 'weld_robot'));
   s.certs.iso = true;
   ok(S.modelUnlocked(s, 'weld_robot') && S.modelUnlocked(s, 'paint'));
@@ -191,6 +191,24 @@ test('주문은 해금된 설비로 만들 수 있는 부품만', () => {
   const s = fresh(5);
   runDays(s, 6);
   ok(s.offers.every((o) => S.itemUnlocked(s, o.item)), s.offers.map((o) => o.item).join());
+});
+test('할 일: 첫날 주문 2개, 수락하면 다음 단계, 용접기 2대면 보상', () => {
+  const s = fresh(1);
+  eq(s.offers.length, 2);
+  eq(S.currentQuest(s).id, 'accept');
+  S.acceptOffer(s, s.offers[0].id);
+  S.checkQuest(s);
+  eq(S.currentQuest(s).id, 'split');
+  const c = s.cash;
+  S.build(s, 5, 4, 'machine', { model: 'weld_old', dir: 0 });
+  S.setRecipe(s, 5, 4, 'bracket');
+  S.checkQuest(s);
+  ok(s.cash > c - 5e6 + 2e6, 'reward paid');
+  eq(S.currentQuest(s).id, 'staff');
+});
+test('시작 라인은 용접이 병목 (프레스보다 느림)', () => {
+  const s = fresh(1);
+  ok(S.machinePerMin(s, S.tile(s, 5, 2)) < S.machinePerMin(s, S.tile(s, 2, 2)) * 0.8);
 });
 test('분당 처리량 표기 = 60 × 속도 / 레시피 시간', () => {
   const s = fresh(1);

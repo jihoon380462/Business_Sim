@@ -119,6 +119,20 @@ export function createUI(game) {
     el.bar.innerHTML = btn('build', '🏗️', '건설') + btn('orders', '📋', '수주', n || '') + btn('staff', '👷', '직원') + btn('manage', '🏢', '경영') + btn('books', '📒', '장부');
   }
 
+  let questSig = '';
+  function renderQuest() {
+    const s = game.s;
+    const q = S.currentQuest(s);
+    const sig = `${s.quest}|${ui.buildMode}`;
+    let p = document.getElementById('quest-pill');
+    if (!q) { if (p) p.remove(); questSig = sig; return; }
+    if (sig === questSig && p) return;
+    questSig = sig;
+    if (!p) { p = document.createElement('button'); p.id = 'quest-pill'; p.className = 'quest-pill'; p.dataset.a = 'quest'; document.querySelector('.stage').appendChild(p); }
+    p.classList.toggle('low', ui.buildMode);
+    p.innerHTML = `<span class="qn">할 일 ${s.quest + 1}/${D.QUESTS.length}</span><span class="qt">${q.icon} ${esc(q.title)}</span>${q.reward ? `<span class="qr">+${man(q.reward)}</span>` : ''}<span class="qm">›</span>`;
+  }
+
   function renderBuildHint() {
     let h = document.getElementById('build-hint');
     if (!ui.buildMode) { if (h) h.remove(); return; }
@@ -128,7 +142,7 @@ export function createUI(game) {
     if (t?.kind === 'belt') text = '손가락으로 쭉 그어서 벨트 깔기 · 탭하면 방향';
     else if (t?.kind === 'remove') text = '철거할 칸을 탭';
     else if (t?.kind === 'rotate') text = '돌릴 칸을 탭';
-    else if (t) text = '빈 칸에 탭해서 설치 · 다시 탭하면 회전';
+    else if (t) text = '빈 칸이나 벨트 위에 탭해서 설치 · 다시 탭하면 회전';
     h.innerHTML = `<span>${text}</span>${t && !['remove', 'rotate'].includes(t.kind) ? `<button data-a="dir">방향 ${DIR_ARROW[ui.dir]}</button>` : ''}`;
   }
 
@@ -142,7 +156,7 @@ export function createUI(game) {
 
   function renderSheet() {
     if (!ui.sheet) { el.sheetWrap.classList.add('hidden'); return; }
-    const f = { orders: sheetOrders, staff: sheetStaff, manage: sheetManage, books: sheetBooks, inspect: sheetInspect, process: sheetProcess }[ui.sheet.type];
+    const f = { orders: sheetOrders, staff: sheetStaff, manage: sheetManage, books: sheetBooks, inspect: sheetInspect, process: sheetProcess, quest: sheetQuest }[ui.sheet.type];
     el.sheet.innerHTML = f();
     el.sheetWrap.classList.remove('hidden');
   }
@@ -344,6 +358,21 @@ export function createUI(game) {
   }
 
 
+  // ---------- 할 일 ----------
+  const QUEST_GO = { accept: ['orders', '📋 수주 열기'], split: ['build-split', '🏗️ 분배기 들고 건설'], staff: ['staff', '👷 직원 열기'], ship: ['orders-active', '📋 진행 중 주문 보기'], product: ['orders', '📋 수주 열기'], tier1: ['orders-clients', '🤝 거래처 신뢰 보기'], iso: ['manage', '🏢 경영 열기'] };
+  function sheetQuest() {
+    const s = game.s;
+    const q = S.currentQuest(s);
+    if (!q) return shell('🎯 할 일', '<div class="card">안내는 여기까지! 이제 마음대로 공장을 키워 보세요.<br/><b>최종 목표</b>: 완성차 직납 + 빚 청산</div>');
+    const go = QUEST_GO[q.id];
+    const list = D.QUESTS.map((x, i) => `<div class="qrow ${i < s.quest ? 'done' : i === s.quest ? 'now' : ''}"><span>${i < s.quest ? '✅' : i === s.quest ? '👉' : '⬜'}</span><span class="grow">${x.icon} ${esc(x.title)}</span>${x.reward ? `<span class="muted">+${man(x.reward)}</span>` : ''}</div>`).join('');
+    const body = `<div class="card warn"><div class="row"><div class="big-ico">${q.icon}</div><div class="grow"><b style="font-size:16px">${esc(q.title)}</b>${q.reward ? `<div class="muted">보상 ${man(q.reward)}</div>` : ''}</div></div>
+      <div style="margin-top:8px;white-space:pre-line;line-height:1.6">${esc(q.text)}</div>
+      ${go ? `<button class="btn pri full" style="margin-top:10px" data-a="quest-go" data-v="${go[0]}">${go[1]}</button>` : ''}</div>
+      <div class="card">${list}</div>`;
+    return shell('🎯 할 일', body);
+  }
+
   // ---------- 공정 보기 ----------
   function sheetProcess() {
     const s = game.s;
@@ -521,10 +550,18 @@ export function createUI(game) {
     sheet: (v, e) => openSheet(v, { tab: e.dataset.tab }),
     close: () => closeSheet(),
     tab: (v) => { ui.sheet.tab = v; renderSheet(); },
-    build: () => { ui.buildMode = true; ui.tool = ui.tool || { kind: 'belt' }; ui.selected = null; renderBar(); renderBuildHint(); },
-    'build-done': () => { ui.buildMode = false; game.r.ghost = null; renderBar(); renderBuildHint(); game.save(); },
+    build: () => { ui.buildMode = true; ui.tool = ui.tool || { kind: 'belt' }; ui.selected = null; renderBar(); renderBuildHint(); renderQuest(); },
+    'build-done': () => { ui.buildMode = false; game.r.ghost = null; renderBar(); renderBuildHint(); renderQuest(); game.save(); },
     tool: (v) => { const p = PALETTE[Number(v)]; ui.tool = { kind: p.kind, model: p.model }; renderBar(); renderBuildHint(); },
     dir: () => { ui.dir = (ui.dir + 1) % 4; renderBuildHint(); },
+    quest: () => openSheet('quest'),
+    'quest-go': (v) => {
+      closeSheet();
+      if (v === 'build-split') { ui.buildMode = true; const i = PALETTE.findIndex((p) => p.kind === 'split'); ui.tool = { kind: 'split' }; renderBar(); renderBuildHint(); renderQuest(); return i; }
+      if (v === 'orders-active') return openSheet('orders', { tab: 'active' });
+      if (v === 'orders-clients') return openSheet('orders', { tab: 'clients' });
+      openSheet(v);
+    },
     process: (v) => { const back = ui.sheet ? { type: ui.sheet.type, tab: ui.sheet.tab } : null; ui.sheet = { type: 'process', item: v, back }; renderSheet(); },
     'process-back': () => { const b = ui.sheet.back; ui.sheet = { ...b }; renderSheet(); },
     accept: (v) => { S.acceptOffer(game.s, Number(v)); ordersSig = ''; renderSheet(); renderOrders(); renderBar(); },
@@ -638,6 +675,15 @@ export function createUI(game) {
       if (!k) return;
       if (k === 'remove') { if (cur) { const r = S.removeAt(s, t.x, t.y); toastNow(`철거 +${man(r.msg)}`); } }
       else if (k === 'rotate') { if (cur) S.rotate(s, t.x, t.y); }
+      else if (cur && cur.k === 'belt' && k !== 'belt') {
+        // 벨트 위에 바로 설치: 벨트를 걷어 내고 같은 방향으로 놓는다
+        const dir = cur.dir;
+        const items = cur.items.length;
+        S.removeAt(s, t.x, t.y);
+        const r = S.build(s, t.x, t.y, k, { dir, model: ui.tool.model });
+        if (!r.ok) { S.build(s, t.x, t.y, 'belt', { dir }); toastNow(`⚠️ ${r.msg}`); }
+        else { ui.dir = dir; toastNow(`벨트 자리에 설치${items ? ` (상자 ${items}개 버림)` : ''}`); }
+      }
       else if (cur) {
         const same = cur.k === k && (k !== 'machine' || D.MACHINES[cur.model].type === D.MACHINES[ui.tool.model].type);
         if (same && cur.k !== 'output') { S.rotate(s, t.x, t.y); ui.dir = cur.dir; }
@@ -661,7 +707,7 @@ export function createUI(game) {
     openSheet('inspect', t);
   }
 
-  function renderAll() { renderHud(); renderOrders(); renderBar(); renderBuildHint(); renderSheet(); renderPopup(); }
+  function renderAll() { renderHud(); renderOrders(); renderBar(); renderBuildHint(); renderQuest(); renderSheet(); renderPopup(); }
 
-  return { renderAll, renderHud, renderOrders, renderBar, renderPopup, renderSheet, pumpToasts, closeSheet };
+  return { renderAll, renderHud, renderOrders, renderBar, renderPopup, renderSheet, renderQuest, pumpToasts, closeSheet };
 }
