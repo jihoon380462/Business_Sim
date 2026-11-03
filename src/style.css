@@ -154,10 +154,10 @@ button:disabled { opacity: .4; cursor: default; }
 .offer .head { display: flex; align-items: center; gap: 8px; }
 .offer .client { font-weight: 800; }
 .offer .qty { font-family: "Do Hyeon", sans-serif; font-size: 20px; }
-.offer .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
-.offer .facts > div { background: var(--bg); border-radius: 10px; padding: 6px 8px; }
-.offer .facts .l { font-size: 10.5px; color: var(--sub); }
-.offer .facts .v { font-family: "Do Hyeon", sans-serif; font-size: 16px; }
+.offer .facts, .route .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0; }
+.offer .facts > div, .route .facts > div { background: var(--bg); border-radius: 10px; padding: 6px 8px; }
+.offer .facts .l, .route .facts .l { font-size: 10.5px; color: var(--sub); }
+.offer .facts .v, .route .facts .v { font-family: "Do Hyeon", sans-serif; font-size: 16px; }
 .bar-mini { height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; }
 .bar-mini i { display: block; height: 100%; background: var(--teal); }
 .bar-mini.y i { background: var(--yellow); } .bar-mini.r i { background: var(--red); }
@@ -227,3 +227,20 @@ button:disabled { opacity: .4; cursor: default; }
 /* 확대 */
 .zoom-box { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; flex-direction: column; gap: 6px; }
 .zoom-box button { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.94); box-shadow: var(--shadow); font-size: 20px; font-weight: 800; color: var(--navy); }
+
+/* 만드는 방법 비교 카드 */
+.card.route { cursor: pointer; border: 2px solid transparent; }
+.card.route.on { border-color: var(--teal, #2A9D8F); }
+.card.route .pm { font-size: 12.5px; }
+.route .facts { margin: 6px 0; }
+.route .facts .v.pos { color: var(--green, #2E9E6B); }
+.route .facts .v.neg { color: var(--red, #D9534F); }
+
+/* 팝업이 화면보다 길어도 확인 버튼은 항상 보이게 */
+.popup .pp-body > .btn.full:last-child { position: sticky; bottom: 0; box-shadow: 0 -8px 14px var(--paper); }
+@media (max-height: 700px) {
+  .pp-hero { padding: 14px 18px 8px; }
+  .pp-hero .i { font-size: 34px; }
+  .pp-hero h2 { font-size: 22px; }
+  .mtable td { padding: 3px 0; }
+}

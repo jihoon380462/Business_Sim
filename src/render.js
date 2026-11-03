@@ -1,6 +1,6 @@
 // 탑뷰 공장 바닥 렌더 (캔버스). 시뮬 상태를 읽기만 한다.
-import * as D from './data.js?v=1.3.1';
-import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js?v=1.3.1';
+import * as D from './data.js?v=1.4.0';
+import { DX, DY, tile, machineDef, machinePerMin, inputPerMin, toolOf, toolLeftFrac } from './sim.js?v=1.4.0';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
@@ -102,7 +102,8 @@ export function createRenderer(canvas) {
     g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = Math.max(1, size * 0.06); g.stroke();
     g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(size * 0.15, size * 0.14, size * 0.7, size * 0.1);
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    if (def.final) { g.font = `${Math.round(size * 0.62)}px sans-serif`; g.fillText(def.icon, size / 2, size / 2 + size * 0.04); }
+    if (def.mark) { g.fillStyle = def.color === '#4E5862' ? '#fff' : 'rgba(20,24,30,.85)'; g.font = `bold ${Math.round(size * (def.mark.length > 2 ? 0.42 : 0.5))}px sans-serif`; g.fillText(def.mark, size / 2, size / 2 + size * 0.04); }
+    else if (def.final) { g.font = `${Math.round(size * 0.62)}px sans-serif`; g.fillText(def.icon, size / 2, size / 2 + size * 0.04); }
     else { g.fillStyle = 'rgba(20,24,30,.75)'; g.font = `bold ${Math.round(size * 0.6)}px sans-serif`; g.fillText(def.icon, size / 2, size / 2 + size * 0.03); }
     R.sprites.set(key, c);
     return c;
@@ -278,7 +279,7 @@ export function createRenderer(canvas) {
     // 아이콘 (작동 중이면 살짝 흔들림)
     const bob = working ? Math.sin(R.t * 14 + x * 3 + y) * T * 0.025 : 0;
     ctx.font = `${Math.round(T * 0.42)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.globalAlpha = ['starved', 'no_worker', 'no_recipe', 'off'].includes(m.status) ? 0.55 : 1;
+    ctx.globalAlpha = ['starved', 'no_worker', 'no_recipe', 'off', 'tool_worn', 'tool_change', 'wait_order'].includes(m.status) ? 0.55 : 1;
     ctx.fillText(type.icon, px + T / 2, py + T / 2 - T * 0.04 + bob);
     ctx.globalAlpha = 1;
     // 분당 처리량
@@ -298,15 +299,23 @@ export function createRenderer(canvas) {
       ctx.strokeStyle = '#7CE0C3'; ctx.lineWidth = Math.max(2, T * 0.06);
       ctx.beginPath(); ctx.arc(px + T / 2, py + T / 2 - T * 0.04, T * 0.3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * m.prog); ctx.stroke();
     }
-    // 용접·열처리 불꽃
-    if (working && (def.type === 'weld' || def.type === 'heat') && Math.random() < 0.35) {
-      R.smokes.push({ x: px + T * (0.3 + Math.random() * 0.4), y: py + T * 0.4, vx: (Math.random() - 0.5) * 30, vy: -20 - Math.random() * 20, life: 0.35, max: 0.35, spark: true, color: def.type === 'weld' ? '#FFE08A' : '#FF9A5A' });
+    // 열처리 불꽃·헤더 쇳가루
+    if (working && (def.type === 'heat' || def.type === 'header') && Math.random() < (def.type === 'heat' ? 0.35 : 0.12)) {
+      R.smokes.push({ x: px + T * (0.3 + Math.random() * 0.4), y: py + T * 0.4, vx: (Math.random() - 0.5) * 30, vy: -20 - Math.random() * 20, life: 0.35, max: 0.35, spark: true, color: def.type === 'heat' ? '#FF9A5A' : '#E6EEF5' });
     }
     // 상태 바 (아래)
     const bw = T - pad * 4, bh = Math.max(2, T * 0.06);
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(px + pad * 2, py + T - pad * 2 - bh, bw, bh);
     ctx.fillStyle = m.cond > 60 ? '#7CD992' : m.cond > 40 ? '#E9B44C' : '#FF6B5E';
     ctx.fillRect(px + pad * 2, py + T - pad * 2 - bh, bw * m.cond / 100, bh);
+    // 공구·금형 수명 바 (상태 바 바로 위, 보라)
+    if (toolOf(m)) {
+      const f = toolLeftFrac(m);
+      const ty = py + T - pad * 2 - bh * 2 - 1;
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(px + pad * 2, ty, bw, bh);
+      ctx.fillStyle = f > 0.3 ? '#B79CF2' : f > 0.1 ? '#E9B44C' : '#FF6B5E';
+      ctx.fillRect(px + pad * 2, ty, bw * f, bh);
+    }
     // 작업자
     if (!def.auto && m.worker) {
       const wx = px + T * 0.82, wy = py + T * 0.2 + (working ? Math.sin(R.t * 8 + x) * 1.2 : 0);
@@ -315,7 +324,7 @@ export function createRenderer(canvas) {
       ctx.fillRect(wx - T * 0.12, wy - 1, T * 0.24, T * 0.035);
     }
     // 배지
-    const badge = m.broken ? (m.repairLeft > 0 ? '🛠️' : '⚠️') : m.serviceLeft > 0 ? '🛠️' : m.status === 'off' ? '⏹' : m.status === 'no_worker' ? '👷' : m.status === 'no_recipe' ? '❔' : m.status === 'blocked' ? '⏸' : null;
+    const badge = m.broken ? (m.repairLeft > 0 ? '🛠️' : '⚠️') : m.serviceLeft > 0 ? '🛠️' : m.status === 'tool_change' ? '🔁' : m.status === 'tool_worn' ? '🧰' : m.status === 'wait_order' ? '💤' : m.status === 'off' ? '⏹' : m.status === 'no_worker' ? '👷' : m.status === 'no_recipe' ? '❔' : m.status === 'blocked' ? '⏸' : null;
     if (badge) {
       const bx = px + T * 0.8, by = py + T * 0.18;
       ctx.fillStyle = m.broken ? '#D9534F' : 'rgba(255,255,255,.92)';

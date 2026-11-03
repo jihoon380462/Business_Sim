@@ -1,7 +1,7 @@
 // 아버지의 공장 — 밸런스 데이터. 숫자는 여기서만 바꾼다.
 
-export const VERSION = '1.3.1';
-export const SAVE_KEY = 'fathers_factory_save_v1';
+export const VERSION = '1.4.0';
+export const SAVE_KEY = 'fathers_factory_bolt_v1';
 
 // ---------- 시간 ----------
 export const TIME = {
@@ -25,97 +25,61 @@ export const FLOOR = {
 };
 
 // ---------- 물건 (벨트 위를 흐르는 상자 1개 = 1로트) ----------
-// raw: 입고구에서 사 오는 원자재 (cost = 로트당 원가)
-// final: 출하 가능한 부품 (lot = 상자 1개에 든 개수, unitPrice = 개당 기준 단가)
+// raw: 입고구에서 사 오는 원자재 (cost = 상자당 원가). raw 이면서 레시피로도 만들 수 있으면 "사 오거나 직접 만들거나"
+// final: 출하 가능한 볼트 (lot = 상자 1개에 든 개수, unitPrice = 개당 기준 단가). mark = 상자에 찍히는 글자
 export const ITEMS = {
-  sheet:     { name: '강판',          icon: '▤', color: '#8FA3B5', raw: true, cost: 30000 },
-  bar:       { name: '강봉',          icon: '▮', color: '#B2A389', raw: true, cost: 40000 },
-  resin:     { name: '수지',          icon: '●', color: '#C9CDE8', raw: true, cost: 8000 },
-  panel:     { name: '프레스 패널',   icon: '◧', color: '#6E8CA8' },
-  blank_d:   { name: '디스크 소재',   icon: '◎', color: '#8C8072' },
-  blank_g:   { name: '기어 소재',     icon: '✲', color: '#A38D63' },
-  seat_raw:  { name: '시트 골격',     icon: '⊓', color: '#6B7684' },
-  shell:     { name: '도어 쉘',       icon: '▭', color: '#7C8996' },
-  shell_p:   { name: '도장 쉘',       icon: '▭', color: '#C2564B' },
-  case_b:    { name: '케이스 몸체',   icon: '▣', color: '#6E8F82' },
-  case_p:    { name: '도장 케이스',   icon: '▣', color: '#3E8E6E' },
-  housing_b: { name: '하우징 소재',   icon: '◍', color: '#8695A8' },
-  housing:   { name: '하우징',        icon: '◍', color: '#5E7FA8' },
-  bracket:   { name: '브라켓',          icon: '📐', color: '#A7B3BF', final: true, lot: 100, unitPrice: 1100 },
-  bolt:      { name: '볼트 세트',       icon: '🔩', color: '#C9BFAD', final: true, lot: 200, unitPrice: 420 },
-  clip:      { name: '플라스틱 클립',   icon: '📎', color: '#8DA2D6', final: true, lot: 300, unitPrice: 260 },
-  disc:      { name: '브레이크 디스크', icon: '💿', color: '#7B838D', final: true, lot: 10,  unitPrice: 15000, ice: true },
-  gear:      { name: '변속기 기어',     icon: '⚙️', color: '#BFA36B', final: true, lot: 10,  unitPrice: 12000, ice: true },
-  seat:      { name: '시트 프레임',     icon: '💺', color: '#4F6274', final: true, lot: 4,   unitPrice: 34000 },
-  door:      { name: '도어 모듈',       icon: '🚪', color: '#B04A40', final: true, lot: 3,   unitPrice: 90000 },
-  battery:   { name: '배터리 케이스',   icon: '🔋', color: '#2F8F68', final: true, lot: 2,   unitPrice: 170000, ev: true },
-  motor:     { name: '모터 하우징',     icon: '🧲', color: '#4F6FA0', final: true, lot: 2,   unitPrice: 125000, ev: true },
+  bar:    { name: '강봉',            icon: '▮', color: '#B2A389', raw: true, cost: 35000, desc: '선반용. 깎여 나가는 칩이 많아 비싸다' },
+  wire:   { name: '선재 코일',        icon: '◎', color: '#7D8A96', raw: true, cost: 15000, desc: '성형용. 거의 안 버려져 싸다' },
+  blank:  { name: '헤딩 소재',        icon: '⊤', color: '#8E9AA6' },
+  bolt:   { name: '일반 볼트 (4.8)',  icon: '🔩', mark: '4.8', color: '#A9B0B8', final: true, lot: 1000, unitPrice: 90 },
+  bolt88: { name: '고강도 볼트 (8.8)', icon: '🔩', mark: '8.8', color: '#4E5862', final: true, lot: 1000, unitPrice: 150 },
 };
 
 // ---------- 레시피 ----------
-// in: {물건: 로트 수}, out: 물건, time: 초(1배속, 속도 1.0 기준), defect: 기본 불량률
+// in: {물건: 상자 수}, out: 물건, time: 초(속도 1.0 기준), defect: 기본 불량률, runCost: 1회당 가스·약품비
+// finishing: 후공정 — 처음부터 '주문 있을 때만 가동' (주문 없으면 재료를 안 받아 분배기가 다른 쪽으로 보냄)
 export const RECIPES = {
-  panel:     { machine: 'press',    in: { sheet: 1 },                 out: 'panel',     time: 2.0, defect: 0.012 },
-  bolt:      { machine: 'lathe',    in: { bar: 1 },                   out: 'bolt',      time: 1.6, defect: 0.012 },
-  blank_d:   { machine: 'lathe',    in: { bar: 1 },                   out: 'blank_d',   time: 3.0, defect: 0.012 },
-  blank_g:   { machine: 'lathe',    in: { bar: 1 },                   out: 'blank_g',   time: 2.6, defect: 0.014 },
-  housing_b: { machine: 'lathe',    in: { bar: 2 },                   out: 'housing_b', time: 4.0, defect: 0.015, ev: true },
-  bracket:   { machine: 'weld',     in: { panel: 1 },                 out: 'bracket',   time: 3.6, defect: 0.015 },
-  seat_raw:  { machine: 'weld',     in: { panel: 2 },                 out: 'seat_raw',  time: 3.2, defect: 0.016 },
-  shell:     { machine: 'weld',     in: { panel: 2 },                 out: 'shell',     time: 3.0, defect: 0.016 },
-  case_b:    { machine: 'weld',     in: { panel: 3 },                 out: 'case_b',    time: 4.0, defect: 0.018, ev: true },
-  disc:      { machine: 'heat',     in: { blank_d: 1 },               out: 'disc',      time: 3.2, defect: 0.012 },
-  gear:      { machine: 'heat',     in: { blank_g: 1 },               out: 'gear',      time: 2.8, defect: 0.014 },
-  housing:   { machine: 'heat',     in: { housing_b: 1 },             out: 'housing',   time: 3.5, defect: 0.012, ev: true },
-  clip:      { machine: 'mold',     in: { resin: 1 },                 out: 'clip',      time: 1.2, defect: 0.015 },
-  seat:      { machine: 'paint',    in: { seat_raw: 1 },              out: 'seat',      time: 2.8, defect: 0.012 },
-  shell_p:   { machine: 'paint',    in: { shell: 1 },                 out: 'shell_p',   time: 2.6, defect: 0.012 },
-  case_p:    { machine: 'paint',    in: { case_b: 1 },                out: 'case_p',    time: 3.0, defect: 0.012, ev: true },
-  door:      { machine: 'assembly', in: { shell_p: 1, bolt: 1 },      out: 'door',      time: 4.5, defect: 0.015 },
-  battery:   { machine: 'assembly', in: { case_p: 1, clip: 2 },       out: 'battery',   time: 5.0, defect: 0.018, ev: true },
-  motor:     { machine: 'assembly', in: { housing: 1, bolt: 1 },      out: 'motor',     time: 4.2, defect: 0.015, ev: true },
+  cut_bolt: { machine: 'lathe',  in: { bar: 1 },   out: 'bolt',   time: 4.0, defect: 0.010 },
+  head:     { machine: 'header', in: { wire: 1 },  out: 'blank',  time: 1.0, defect: 0.010 },
+  roll:     { machine: 'roll',   in: { blank: 1 }, out: 'bolt',   time: 1.3, defect: 0.008 },
+  heat88:   { machine: 'heat',   in: { bolt: 1 },  out: 'bolt88', time: 1.5, defect: 0.006, finishing: true },
+};
+// 볼트를 만드는 두 가지 길. 키 = 그 길의 첫 레시피
+export const ROUTE_NOTES = {
+  cut_bolt: { name: '절삭', icon: '⚙️', pros: '싸고 간단 · 잘 안 망가짐', cons: '느림 · 재료비 비쌈' },
+  head:     { name: '성형', icon: '🔨', pros: '3배 빠름 · 재료비 쌈', cons: '기계 2대 비쌈 · 금형 교체비' },
 };
 
 // ---------- 설비 ----------
+// tool: 닳는 공구·금형. life = 몇 상자 찍으면 다 닳나, cost = 교체비, sec = 교체하는 동안 서는 시간(초)
 export const MACHINE_TYPES = {
-  press:    { name: '프레스',   icon: '🔨', color: '#5B7083' },
-  lathe:    { name: 'CNC 선반', icon: '⚙️', color: '#3F7E8C' },
-  weld:     { name: '용접기',   icon: '🔥', color: '#8A6A4A' },
-  heat:     { name: '열처리로', icon: '♨️', color: '#A0553A' },
-  mold:     { name: '사출기',   icon: '🧪', color: '#5865A0' },
-  paint:    { name: '도장 부스', icon: '🎨', color: '#5E8A5A' },
-  assembly: { name: '조립대',   icon: '🔧', color: '#8E7A40' },
+  lathe:  { name: 'CNC 선반', icon: '⚙️', color: '#3F7E8C' },
+  header: { name: '헤더',     icon: '🔨', color: '#5B6B7D', tool: { name: '헤더 금형', life: 320, cost: 1800000, sec: 8 } },
+  roll:   { name: '전조기',   icon: '🌀', color: '#4F7A6A', tool: { name: '전조 다이스', life: 480, cost: 900000, sec: 6 } },
+  heat:   { name: '열처리로', icon: '♨️', color: '#A0553A' },
 };
-// speed: 처리 속도 배율, wear: 마모 배율, auto: 작업자 불필요
+// speed: 처리 속도 배율, wear: 기계 마모 배율, toolLife: 금형 수명 배율, auto: 작업자 불필요
 export const MACHINES = {
-  press_old:  { type: 'press',    name: '중고 프레스',    price: 8000000,   speed: 0.85, wear: 1.6 },
-  press_new:  { type: 'press',    name: '서보 프레스',    price: 35000000,  speed: 1.35, wear: 0.7 },
-  lathe_old:  { type: 'lathe',    name: '중고 CNC 선반',  price: 12000000,  speed: 0.85, wear: 1.5 },
-  lathe_new:  { type: 'lathe',    name: '5축 CNC',        price: 55000000,  speed: 1.4,  wear: 0.7 },
-  weld_old:   { type: 'weld',     name: '수동 용접기',    price: 5000000,   speed: 0.8,  wear: 1.4 },
-  weld_robot: { type: 'weld',     name: '용접 로봇',      price: 80000000,  speed: 1.7,  wear: 0.6, auto: true },
-  heat:       { type: 'heat',     name: '열처리로',       price: 40000000,  speed: 1.0,  wear: 0.9 },
-  mold:       { type: 'mold',     name: '사출 성형기',    price: 28000000,  speed: 1.0,  wear: 1.0 },
-  paint:      { type: 'paint',    name: '도장 부스',      price: 60000000,  speed: 1.0,  wear: 0.9 },
-  assembly:   { type: 'assembly', name: '조립대',         price: 25000000,  speed: 1.0,  wear: 0.7 },
-  assembly_robot: { type: 'assembly', name: '협동 로봇 조립', price: 140000000, speed: 1.6, wear: 0.6, auto: true },
+  lathe_old:  { type: 'lathe',  name: '중고 CNC 선반',        price: 12000000, speed: 0.85, wear: 0.45 },
+  lathe_new:  { type: 'lathe',  name: '자동 선반',            price: 45000000, speed: 1.3,  wear: 0.3 },
+  header_old: { type: 'header', name: '중고 헤더',            price: 35000000, speed: 0.9,  wear: 1.4, toolLife: 0.8 },
+  header_new: { type: 'header', name: '다단 포머',            price: 95000000, speed: 1.6,  wear: 0.8, toolLife: 1.4 },
+  roll:       { type: 'roll',   name: '전조기',               price: 26000000, speed: 1.0,  wear: 1.1 },
+  roll_auto:  { type: 'roll',   name: '자동 전조기',          price: 70000000, speed: 1.3,  wear: 0.8, auto: true },
+  heat:       { type: 'heat',   name: '열처리로',             price: 48000000, speed: 1.0,  wear: 0.7 },
 };
-// 설비 해금 조건 (조건 없음 = 처음부터). rep: [거래처 등급, 신뢰], tier: 해금된 거래처 등급, cert: 인증
+// 설비 해금 조건 (null = 처음부터). rep: [거래처 등급, 신뢰], tier: 해금된 거래처 등급, cert: 인증
 export const UNLOCKS = {
   types: {
-    press: null,
-    weld: null,
-    lathe: { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
-    mold:  { rep: [0, 55], hint: '3차 협력사 신뢰 55' },
-    heat:  { tier: 1, hint: '2차 협력사 거래 시작' },
-    paint: { cert: 'iso', hint: 'ISO 9001 인증' },
-    assembly: { cert: 'iso', hint: 'ISO 9001 인증' },
+    lathe: null,
+    header: { month: 1, hint: '첫 달 결산을 넘기면' },
+    roll:   { month: 1, hint: '첫 달 결산을 넘기면' },
+    heat:   { tier: 1, hint: '2차 협력사 거래 시작' },
   },
   models: {
-    press_new: { tier: 1, hint: '2차 협력사 거래 시작' },
-    lathe_new: { tier: 1, hint: '2차 협력사 거래 시작' },
-    weld_robot: { cert: 'iso', hint: 'ISO 9001 인증' },
-    assembly_robot: { cert: 'iatf', hint: 'IATF 16949 인증' },
+    lathe_new:  { tier: 1, hint: '2차 협력사 거래 시작' },
+    header_new: { cert: 'iso', hint: 'ISO 9001 인증' },
+    roll_auto:  { cert: 'iso', hint: 'ISO 9001 인증' },
   },
   split: null,
 };
@@ -144,7 +108,7 @@ export const LOGISTICS = {
   inputInterval: 0.9,         // 입고구 1로트 배출 간격(초)
   removeRefund: 0.5,
   dumpRate: 0.4,             // 남는 재고 처분 시 단가 비율
-  outputBufferLots: 6,        // 주문량보다 이만큼 더 받으면 출하구가 받기를 멈춤(라인이 멈춤)
+  outputBufferLots: 40,       // 주문 없는 재고가 이만큼 넘으면 경고 (출하구는 계속 받는다)
 };
 
 // ---------- 직원 ----------
@@ -169,7 +133,7 @@ export const START_WORKERS = [
 // ---------- 거래처 · 주문 ----------
 export const TIERS = {
   0: { name: '3차 협력사',  pay: 'cash',      penaltyPerDay: 0.03, startRep: 50 },
-  1: { name: '2차 협력사',  pay: 'nextMonth', penaltyPerDay: 0.04, startRep: 30, need: { rep: [0, 60] } },
+  1: { name: '2차 협력사',  pay: 'nextMonth', penaltyPerDay: 0.04, startRep: 30, need: { rep: [0, 70] } },
   2: { name: '1차 협력사',  pay: 'nextMonth', penaltyPerDay: 0.05, startRep: 30, need: { cert: 'iso' } },
   3: { name: '완성차 직납', pay: 'nextMonth', penaltyPerDay: 0.06, startRep: 30, need: { cert: 'iatf', rep: [2, 60] } },
 };
@@ -182,28 +146,25 @@ export const CLIENTS = {
 export const OFFERS = {
   boardMax: 6,
   dailyChance: { 0: 0.5, 1: 0.4, 2: 0.35, 3: 0.3 },
-  parts: { 0: ['bracket', 'bolt', 'clip'], 1: ['bracket', 'bolt', 'clip', 'disc', 'gear'], 2: ['disc', 'gear', 'seat', 'battery', 'motor'], 3: ['seat', 'door', 'battery', 'motor'] },
-  refLotsPerDay: 22,                 // 기준: 기계 한 줄이 하루에 만드는 로트 수 (레시피 시간으로 보정)
+  parts: { 0: ['bolt'], 1: ['bolt', 'bolt88'], 2: ['bolt', 'bolt88'], 3: ['bolt88'] },
+  lotsPerDay: { 0: 14, 1: 20, 2: 28, 3: 36 }, // 주문 크기 기준: 하루치 상자 수 (× 생산일 수)
   daysOfWork: { 0: [2, 5], 1: [3, 6], 2: [4, 8], 3: [5, 10] },
   slack: [1.5, 2.2],                 // 납기 = 생산일 × slack
   priceJitter: 0.1,
   tierPriceMult: { 0: 1.0, 1: 1.08, 2: 1.15, 3: 1.25 },
   expireDays: [2, 4],
-  repOnTime: 5, repLate: -6, repCancel: -20,
+  repOnTime: 3, repLate: -6, repCancel: -20,
   cancelAfterLateDays: 5, cancelFeeRate: 0.1,
   producibleBias: 0.65,              // 지금 생산 가능한 부품 쪽으로 쏠리는 비율
 };
-export const REGULAR = { client: '대성산업', item: 'bracket', lots: 70, unitPrice: 1050, dueDays: 8, tier: 0 };
+export const REGULAR = { client: '대성산업', item: 'bolt', lots: 70, unitPrice: 85, dueDays: 8, tier: 0 };
 
 // ---------- 인증 · 연구 · 전환 ----------
 export const CERTS = {
-  iso:  { name: 'ISO 9001',   icon: '📜', cost: 30000000,  maxDefect: 0.03,  need: null,  desc: '1차 협력사 거래 가능' },
+  iso:  { name: 'ISO 9001',   icon: '📜', cost: 30000000,  maxDefect: 0.03,  need: null,  desc: '1차 협력사 거래 · 다단 포머·자동 전조기' },
   iatf: { name: 'IATF 16949', icon: '🏅', cost: 100000000, maxDefect: 0.018, need: 'iso', desc: '완성차 직납 가능' },
 };
-export const RESEARCH = {
-  ev: { name: '전기차 부품 개발', icon: '⚡', cost: 150000000, days: 20, need: 'iso', desc: '배터리 케이스·모터 하우징 레시피 해금' },
-};
-export const TRANSITION = { startYear: 3, iceDecline: 0.2, evBoost: 0.3 };
+export const RESEARCH = {};
 
 // ---------- 돈 ----------
 export const FINANCE = {
@@ -222,23 +183,24 @@ export const NEWS = [
   { id: 'steel_down', icon: '📉', title: '철강값 안정',       text: '이번 달 원자재비가 12% 내린다.', rawMult: 0.88, weight: 3 },
   { id: 'boom',       icon: '🚗', title: '신차 출시 붐',      text: '이번 달 주문이 쏟아진다.', offerMult: 1.6, weight: 2 },
   { id: 'slump',      icon: '🥶', title: '자동차 판매 부진',  text: '이번 달은 주문이 뜸하다.', offerMult: 0.6, weight: 2 },
-  { id: 'subsidy',    icon: '🏛️', title: '스마트공장 지원사업', text: '이번 달 로봇 구입 시 40% 정부 지원.', robotDiscount: 0.4, weight: 1, minMonth: 5 },
+  { id: 'subsidy',    icon: '🏛️', title: '스마트공장 지원사업', text: '이번 달 자동 설비 구입 시 40% 정부 지원.', robotDiscount: 0.4, weight: 1, minMonth: 5 },
   { id: 'poach',      icon: '🕵️', title: '경쟁사 스카우트',   text: '옆 공장에서 우리 숙련공을 데려가려 한다.', kind: 'poach', weight: 1, minMonth: 4 },
   { id: 'bankrupt',   icon: '💥', title: '거래처 부도',       text: '외상값을 받을 거래처 하나가 부도났다. 받을 돈의 절반을 떼였다.', kind: 'bankrupt', weight: 1, minMonth: 6 },
+  { id: 'die_short',  icon: '🧰', title: '금형강 품귀',       text: '이번 달 금형·다이스 교체비가 50% 오른다.', toolMult: 1.5, weight: 2, minMonth: 2 },
   { id: 'safety',     icon: '⛑️', title: '산업안전 점검',     text: '노동청 안전 점검이 나왔다.', kind: 'safety', fine: 5000000, weight: 1, minMonth: 3 },
 ];
 export const STORY = { veteranRetireMonth: 14, advisorWageRate: 0.5, advisorGrowthBoost: 2.0, severance: 30000000 };
 
 export const ACHIEVEMENTS = {
   first_profit: { icon: '📗', name: '첫 흑자' },
-  second_line:  { icon: '🏭', name: '두 번째 제품 출하' },
+  forming:      { icon: '🌀', name: '성형 라인 가동' },
+  high_str:     { icon: '♨️', name: '고강도 볼트 출하' },
   tier1:        { icon: '🤝', name: '2차 협력사 첫 납품' },
   iso:          { icon: '📜', name: 'ISO 9001 인증' },
-  robot:        { icon: '🤖', name: '첫 로봇 도입' },
+  robot:        { icon: '🤖', name: '첫 자동 설비' },
   staff10:      { icon: '👷', name: '직원 10명' },
   tier2:        { icon: '🚙', name: '1차 협력사 첫 납품' },
   iatf:         { icon: '🏅', name: 'IATF 16949 인증' },
-  ev:           { icon: '⚡', name: '전기차 부품 개발' },
   tier3:        { icon: '🏆', name: '완성차 직납' },
   debt_free:    { icon: '🕊️', name: '빚 청산' },
 };
@@ -247,19 +209,17 @@ export const ACHIEVEMENTS = {
 // check 는 sim.js 의 questDone 에서 id 로 판정
 export const QUESTS = [
   { id: 'accept',  icon: '📋', title: '주문 받아 오기', reward: 0,
-    text: '아버지 단골(대성산업) 주문만으로는 매달 적자예요.\n📋 수주 → 새 주문에서 하나 골라 [수락]을 누르세요.\n"약 N일이면 완료"가 납기보다 짧은 주문이 안전해요.' },
-  { id: 'split',   icon: '🔀', title: '병목 풀기', reward: 3000000,
-    text: '프레스는 분당 22상자를 찍는데 용접기는 14상자밖에 못 해서, 용접기 앞에 패널이 밀려 있어요.\n🏗️ 건설 → 🔥 용접기를 하나 더 놓고, 🔀 분배기로 패널을 두 대에 나눠 주세요.\n(예: 프레스 오른쪽 벨트 칸을 분배기로 바꾸고, 아래로 벨트 → 용접기 → 출하구)' },
-  { id: 'staff',   icon: '👷', title: '새 기계에 사람 붙이기', reward: 0,
-    text: '새 용접기 위에 👷 표시가 있으면 사람이 없어 멈춰 있는 거예요.\n👷 직원 → 지원자 중 한 명을 [채용]하세요. 숙련공은 느린 기계에 자동으로 배치돼요.' },
+    text: '아버지 단골 주문만으로는 매달 적자예요.\n📋 수주 → 새 주문에서 [수락]을 누르세요.' },
+  { id: 'split',   icon: '🔀', title: '선반 한 대 더', reward: 3000000,
+    text: '선반이 느려서 강봉이 앞에 밀려 있어요.\n선반 왼쪽 벨트를 🔀 분배기로 바꾸고, 아래로 벨트 → ⚙️ 선반 → 벨트로 출하구까지 이어 주세요.' },
   { id: 'ship',    icon: '🚚', title: '첫 출하', reward: 0,
-    text: '출하구에 주문 물량이 다 모이면 그날 퇴근할 때 트럭이 실어 가요.\n위쪽 주문 띠의 막대가 다 차는지 지켜보세요. 속도 ▶▶를 눌러도 돼요.' },
+    text: '주문 상자가 다 모이면 퇴근할 때 트럭이 실어 가요. ▶▶ 를 눌러 기다려 보세요.' },
   { id: 'month',   icon: '💰', title: '첫 월말 버티기', reward: 0,
-    text: '10일째 퇴근하면 월급·유지비·이자가 한꺼번에 나가요.\n결산표에서 어디서 돈이 새는지 확인해 보세요.' },
-  { id: 'product', icon: '🔩', title: '두 번째 제품', reward: 5000000,
-    text: '선반이 풀리면 강봉으로 볼트를, 사출기로는 클립을 만들 수 있어요.\n수주 카드에서 제품을 누르면 공정도가 나와요. 새 라인을 깔고 브라켓 말고 다른 제품을 출하해 보세요.\n새 기계에도 사람이 한 명 필요해요 (👷 직원에서 채용).' },
-  { id: 'tier1',   icon: '🤝', title: '2차 협력사 뚫기', reward: 0,
-    text: '3차 협력사 신뢰가 60이 되면 2차 협력사 주문이 들어와요. 납기를 잘 지키면 신뢰가 올라요.\n열처리로가 풀리면 브레이크 디스크·기어도 만들 수 있어요.' },
+    text: '10일마다 월급·유지비·이자가 나가요. 선반만으로는 매달 조금씩 적자예요.\n첫 달을 넘기면 빠른 성형 설비가 풀려요.' },
+  { id: 'forming', icon: '🌀', title: '성형 라인 깔기', reward: 5000000,
+    text: '선재 코일 → 🔨 헤더 → 🌀 전조기 → 출하구.\n선반보다 3배 빠르고 재료도 싸요. 대신 기계가 비싸서(경영 → 대출) 금형값이 나가요.\n새 기계엔 사람도 필요해요 (👷 직원).' },
+  { id: 'heat',    icon: '♨️', title: '고강도 볼트', reward: 0,
+    text: '신뢰 70이면 ♨️ 열처리로가 풀려요. 볼트를 넣으면 고강도 볼트(값 1.7배)가 나와요.\n전조기 뒤 벨트 한 칸을 🔀 분배기로 바꾸고 옆에 열처리로 → 벨트 → 출하구.\n고강도 주문이 없으면 열처리로는 알아서 쉬어요.' },
   { id: 'iso',     icon: '📜', title: 'ISO 9001 인증', reward: 0,
-    text: '🏢 경영 → 인증. 지난달 불량률 3% 이하 + 3,000만원.\n불량은 기계 상태가 나쁘거나 초보가 맡으면 늘어요. 기계를 눌러 [🔧 정비]하고, 숙련공을 쓰세요.\n인증을 따면 1차 협력사·도장·조립·로봇이 열려요.' },
+    text: '🏢 경영 → 인증. 지난달 불량 3% 이하 + 3,000만원.\n불량이 많으면 기계를 눌러 🔧 정비하세요.' },
 ];

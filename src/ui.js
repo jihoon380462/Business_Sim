@@ -1,6 +1,6 @@
 // 화면 (DOM): HUD · 주문 띠 · 하단 바 · 시트 · 팝업 · 캔버스 입력
-import * as D from './data.js?v=1.3.1';
-import * as S from './sim.js?v=1.3.1';
+import * as D from './data.js?v=1.4.0';
+import * as S from './sim.js?v=1.4.0';
 
 // ---------- 표기 ----------
 export function man(n, { sign = false } = {}) {
@@ -20,6 +20,7 @@ const DIR_ARROW = ['→', '↓', '←', '↑'];
 const STATUS = {
   work: '가동 중', starved: '재료 대기', blocked: '출구 막힘 (앞 칸이 꽉 참)', no_worker: '작업자 없음', no_recipe: '레시피를 고르세요',
   broken: '고장', service: '정비 중', idle: '대기', off: '정지됨 (재료를 받지 않고, 작업자도 다른 기계로 감)',
+  tool_change: '금형 교체 중', tool_worn: '금형 교체비가 없어 멈춤', wait_order: '주문 없음 — 쉬는 중',
 };
 
 export function createUI(game) {
@@ -89,13 +90,10 @@ export function createUI(game) {
     { kind: 'split', ico: '🔀', nm: '분배기' },
     { kind: 'input', ico: '📥', nm: '입고구' },
     { kind: 'output', ico: '📤', nm: '출하구' },
-    { kind: 'machine', model: 'press_old', ico: '🔨', nm: '프레스' },
-    { kind: 'machine', model: 'weld_old', ico: '🔥', nm: '용접기' },
     { kind: 'machine', model: 'lathe_old', ico: '⚙️', nm: '선반' },
+    { kind: 'machine', model: 'header_old', ico: '🔨', nm: '헤더' },
+    { kind: 'machine', model: 'roll', ico: '🌀', nm: '전조기' },
     { kind: 'machine', model: 'heat', ico: '♨️', nm: '열처리' },
-    { kind: 'machine', model: 'mold', ico: '🧪', nm: '사출기' },
-    { kind: 'machine', model: 'paint', ico: '🎨', nm: '도장' },
-    { kind: 'machine', model: 'assembly', ico: '🔧', nm: '조립대' },
     { kind: 'rotate', ico: '🔄', nm: '회전' },
     { kind: 'remove', ico: '🗑️', nm: '철거', danger: true },
   ];
@@ -162,25 +160,18 @@ export function createUI(game) {
   }
 
   // ---------- 수주 ----------
-  function capacityOf(item) {
-    const s = game.s;
-    const ms = S.machinesList(s);
-    let cap = Infinity;
-    for (const c of S.chainFor(item)) {
-      const lots = ms.filter((m) => m.recipe === c.recipe && !m.broken).reduce((a, m) => a + S.machinePerMin(s, m), 0) / c.mult;
-      cap = Math.min(cap, lots);
-    }
-    return cap === Infinity ? 0 : cap;
-  }
+  function capacityOf(item) { const c = S.capacityOf(game.s, item); return Number.isFinite(c) ? c : 0; }
+  /** 가장 적게 모자란 길 기준으로 없는 설비 */
   function missingFor(item) {
     const s = game.s;
     const types = new Set(S.machinesList(s).map((m) => S.machineDef(m).type));
-    const miss = [];
-    for (const c of S.chainFor(item)) {
-      if (!S.recipeUnlocked(s, c.recipe)) { miss.push('전기차 연구'); continue; }
-      if (!types.has(c.machine)) miss.push(D.MACHINE_TYPES[c.machine].name);
+    let best = null;
+    for (const rt of S.routesFor(item)) {
+      if (!rt.length) continue;
+      const miss = [...new Set(rt.filter((c) => !types.has(c.machine)).map((c) => D.MACHINE_TYPES[c.machine].name))];
+      if (!best || miss.length < best.length) best = miss;
     }
-    return [...new Set(miss)];
+    return best || [];
   }
 
   function sheetOrders() {
@@ -194,8 +185,7 @@ export function createUI(game) {
         const it = D.ITEMS[o.item];
         const value = o.lots * it.lot * o.unitPrice;
         const cap = capacityOf(o.item);
-        const load = Math.max(0, S.demandLots(s, o.item) - (s.inventory[o.item] || 0));
-        const days = cap > 0 ? Math.ceil((load + o.lots) / cap) : null;
+        const days = S.estimateDays(s, o.item, o.lots);
         const miss = missingFor(o.item);
         const capTxt = cap > 0 ? ` · 지금 라인 분당 ${cap.toFixed(1)}상자` : '';
         const feas = miss.length ? `<span class="tag no">필요: ${miss.join(', ')}</span>` : days == null ? '<span class="tag no">라인 없음</span>' : days <= o.dueDays ? `<span class="tag ok">약 ${days}일이면 완료${capTxt}</span>` : `<span class="tag warn">약 ${days}일 걸림 (납기 ${o.dueDays}일)${capTxt}</span>`;
@@ -286,6 +276,8 @@ export function createUI(game) {
       <div class="kv"><span>공장 유지비 (전기·임대·보험)</span><b class="dh">${man(S.monthlyOverhead(s))}</b></div>
       <div class="kv"><span>대출 이자 (월 ${(D.FINANCE.monthlyInterest * 100).toFixed(1)}%)</span><b class="dh">${man(interest)}</b></div>
       <div class="kv"><span>이번 달 원자재비 (지금까지)</span><b class="dh">${man(s.month.raw)}</b></div>
+      <div class="kv"><span>이번 달 공구·금형비 (지금까지)</span><b class="dh">${man(s.month.tooling || 0)}</b></div>
+      ${s.month.utility ? `<div class="kv"><span>이번 달 가스·약품비 (지금까지)</span><b class="dh">${man(s.month.utility)}</b></div>` : ''}
       <div class="muted" style="margin-top:4px">월말(10일 퇴근)에 한꺼번에 나갑니다. 현금이 모자라면 자동으로 빚을 지고, 한도도 넘으면 부도.</div></div>
       <h3 class="sec">🏦 대출</h3><div class="card">
       <div class="kv"><span>빚</span><b class="dh">${man(s.loan)}</b></div>
@@ -300,8 +292,8 @@ export function createUI(game) {
         ${st.done ? '' : `<button class="btn sm yel" data-a="cert" data-v="${id}" ${st.ok ? '' : 'disabled'}>${man(c.cost)}</button>`}</div></div>`;
     }
     const d = S.lastMonthDefect(s);
-    body += `<div class="muted" style="padding:0 4px">지난달 불량률: <b>${d == null ? '-' : (d * 100).toFixed(2) + '%'}</b> · 숙련공·기계 상태·로봇이 낮춰 줍니다</div>`;
-    body += `<h3 class="sec">⚡ 연구</h3>`;
+    body += `<div class="muted" style="padding:0 4px">지난달 불량률: <b>${d == null ? '-' : (d * 100).toFixed(2) + '%'}</b> · 숙련공·기계 정비가 낮춰 줍니다</div>`;
+    if (Object.keys(D.RESEARCH).length) body += `<h3 class="sec">⚡ 연구</h3>`;
     for (const [id, r] of Object.entries(D.RESEARCH)) {
       const st = s.research[id];
       body += `<div class="card"><div class="row"><div class="big-ico">${r.icon}</div><div class="grow"><b>${r.name}</b><div class="muted">${r.desc} · ${r.days}일</div>
@@ -352,14 +344,16 @@ export function createUI(game) {
       ${row('인건비', -(r.wages + r.otPay), 'neg')}
       ${row('공장 유지비', -r.overhead, 'neg')}
       ${row('대출 이자', -r.interest, 'neg')}
-      ${r.repairs ? row('수리·정비', -r.repairs, 'neg') : ''}
+      ${inPopup ? ((r.repairs || 0) + (r.tooling || 0) + (r.utility || 0) ? row('설비 유지 (수리·공구·가스)', -((r.repairs || 0) + (r.tooling || 0) + (r.utility || 0)), 'neg') : '') : `${r.repairs ? row('수리·정비', -r.repairs, 'neg') : ''}
+      ${r.tooling ? row('공구·금형', -r.tooling, 'neg') : ''}
+      ${r.utility ? row('가스·약품', -r.utility, 'neg') : ''}`}
       <tr class="tot"><td>순이익</td><td class="${r.net >= 0 ? 'pos' : 'neg'}">${man(r.net, { sign: true })}</td></tr></table>
       <div class="muted" style="margin-top:6px">생산 ${r.crafts}회 · 불량 ${r.crafts ? ((r.defects / r.crafts) * 100).toFixed(1) : 0}% · 외상 회수 ${man(r.collected)}${r.built ? ` · 설비 투자 ${man(r.built)}` : ''}${r.emergency ? ` · ⚠️ 긴급 대출 ${man(r.emergency)}` : ''}</div></div>`;
   }
 
 
   // ---------- 할 일 ----------
-  const QUEST_GO = { accept: ['orders', '📋 수주 열기'], split: ['build-split', '🏗️ 분배기 들고 건설'], staff: ['staff', '👷 직원 열기'], ship: ['orders-active', '📋 진행 중 주문 보기'], product: ['orders', '📋 수주 열기'], tier1: ['orders-clients', '🤝 거래처 신뢰 보기'], iso: ['manage', '🏢 경영 열기'] };
+  const QUEST_GO = { accept: ['orders', '📋 수주 열기'], split: ['build-split', '🏗️ 분배기 들고 건설'], ship: ['orders-active', '📋 진행 중 주문 보기'], forming: ['process-bolt', '🗺️ 절삭 vs 성형 비교'], heat: ['orders-clients', '🤝 거래처 신뢰 보기'], iso: ['manage', '🏢 경영 열기'] };
   function sheetQuest() {
     const s = game.s;
     const q = S.currentQuest(s);
@@ -373,47 +367,96 @@ export function createUI(game) {
     return shell('🎯 할 일', body);
   }
 
-  // ---------- 공정 보기 ----------
+  // ---------- 공정 보기 (만드는 법 · 길 비교) ----------
+  function routeFacts(item, rt) {
+    const s = game.s;
+    const it = D.ITEMS[item];
+    const raws = S.routeRaws(rt, item);
+    const rawCost = Object.entries(raws).reduce((a, [x, n]) => a + D.ITEMS[x].cost * n, 0);
+    const base = (type) => Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === type);
+    let tool = 0, run = 0, price = 0, workers = 0, perMin = Infinity, locked = null;
+    for (const c of rt) {
+      const model = base(c.machine);
+      const def = D.MACHINES[model];
+      tool += S.toolCostPerLot(model) * c.mult;
+      run += (D.RECIPES[c.recipe].runCost || 0) * c.mult;
+      price += def.price;
+      if (!def.auto) workers += 1;
+      perMin = Math.min(perMin, S.recipePerMin(c.recipe, def.speed) / c.mult);
+      if (!locked && !S.typeUnlocked(s, c.machine)) locked = D.UNLOCKS.types[c.machine]?.hint;
+    }
+    const sale = it.final ? it.lot * it.unitPrice : 0;
+    return { raws, rawCost, tool, run, price, workers, perMin, locked, margin: sale - rawCost - tool - run };
+  }
+
   function sheetProcess() {
     const s = game.s;
     const item = ui.sheet.item;
     const it = D.ITEMS[item];
-    const finalRate = S.recipePerMin(item); // 마지막 기계 1대(기본 속도)가 분당 만드는 양
     const ms = S.machinesList(s);
-    const rawCost = S.chainFor(item).reduce((a, c) => a + Object.entries(D.RECIPES[c.recipe].in).filter(([x]) => D.ITEMS[x].raw).reduce((b, [x, n]) => b + D.ITEMS[x].cost * n * c.mult, 0), 0);
-    const step = (rid, mult) => {
-      const r = D.RECIPES[rid];
+    const order = { cut_bolt: 0, head: 1 };
+    const routes = S.routesFor(item).filter((rt) => rt.length).sort((a, b) => (order[S.routeKey(a)] ?? 9) - (order[S.routeKey(b)] ?? 9));
+    const sel = Math.min(ui.sheet.route ?? 0, routes.length - 1);
+    // 길 비교 카드
+    const cards = routes.map((rt, i) => {
+      const f = routeFacts(item, rt);
+      const note = D.ROUTE_NOTES[S.routeKey(rt)] || { name: '기본', icon: '🏭', pros: '', cons: '' };
+      const chain = rt.map((c) => `${D.MACHINE_TYPES[c.machine].icon}${D.MACHINE_TYPES[c.machine].name}`).join(' → ');
+      return `<div class="card route ${i === sel ? 'on' : ''}" data-a="route" data-v="${i}">
+        <div class="row"><b>${note.icon} ${esc(note.name)}</b><span class="muted" style="margin-left:6px">${esc(chain)}</span><span class="grow"></span>${f.locked ? `<span class="tag no">🔒</span>` : ''}</div>
+        <div class="facts">
+          <div><div class="l">분당</div><div class="v">${f.perMin.toFixed(0)}상자</div></div>
+          <div><div class="l">기계값</div><div class="v">${man(f.price)}</div></div>
+          <div><div class="l">상자당 원가</div><div class="v">${man(f.rawCost + f.tool + f.run)}</div></div>
+        </div>
+        ${note.pros ? `<div class="pm">👍 ${esc(note.pros)} &nbsp; 👎 ${esc(note.cons)}</div>` : ''}
+        ${f.locked ? `<div class="pm neg">🔒 ${esc(f.locked)}</div>` : ''}
+      </div>`;
+    }).join('');
+    // 고른 길의 공정 단계 (위 → 아래)
+    const rt = routes[sel];
+    const last = rt[rt.length - 1];
+    const lastDef = D.MACHINES[Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === last.machine)];
+    const target = S.recipePerMin(last.recipe, lastDef.speed); // 마지막 기계 1대 기준
+    const step = (c) => {
+      const r = D.RECIPES[c.recipe];
       const type = D.MACHINE_TYPES[r.machine];
-      const rpm = S.recipePerMin(rid);
-      const need = (finalRate * mult) / rpm;
-      const owned = ms.filter((m) => m.recipe === rid).length;
-      const locked = !S.typeUnlocked(s, r.machine) ? D.UNLOCKS.types[r.machine]?.hint : !S.recipeUnlocked(s, rid) ? '전기차 연구' : null;
+      const model = Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === r.machine);
+      const rpm = S.recipePerMin(c.recipe, D.MACHINES[model].speed);
+      const need = (target * c.mult) / rpm;
+      const owned = ms.filter((m) => m.recipe === c.recipe).length;
+      const locked = !S.typeUnlocked(s, r.machine) ? D.UNLOCKS.types[r.machine]?.hint : null;
+      const tl = type.tool;
       return `<div class="pstep ${locked ? 'lock' : owned ? 'have' : ''}">
-        <div class="ph"><span class="pi" style="background:${type.color}">${type.icon}</span><b>${type.name}</b><span class="grow"></span>${locked ? `<span class="tag no">🔒</span>` : owned ? `<span class="tag ok">보유 ${owned}</span>` : '<span class="tag">없음</span>'}</div>
+        <div class="ph"><span class="pi" style="background:${type.color}">${type.icon}</span><b>${type.name}</b><span class="grow"></span>${locked ? '<span class="tag no">🔒</span>' : owned ? `<span class="tag ok">보유 ${owned}</span>` : '<span class="tag">없음</span>'}</div>
         <div class="flow">${Object.entries(r.in).map(([x, n]) => itemChip(x, n)).join(' + ')}<span class="arrow">→</span>${itemChip(r.out)}</div>
-        <div class="pm">1대 분당 <b>${rpm.toFixed(1)}</b>상자 · 균형 <b>${need.toFixed(1)}대</b></div>
+        <div class="pm">${esc(D.MACHINES[model].name)} 1대 분당 <b>${rpm.toFixed(1)}</b>상자 · 균형 <b>${need.toFixed(1)}대</b> · ${man(D.MACHINES[model].price)}</div>
+        ${tl ? `<div class="pm">🧰 ${Math.round(tl.life * (D.MACHINES[model].toolLife || 1))}상자마다 금형 교체 ${man(tl.cost)}</div>` : ''}
         ${locked ? `<div class="pm neg">해금: ${esc(locked)}</div>` : ''}</div>`;
     };
-    const raw = (x, mult) => `<div class="pstep raw"><div class="ph"><span class="pi" style="background:#2F6F9E">📥</span><b>입고구</b><span class="grow"></span>${itemChip(x)}</div>
-      <div class="pm">분당 <b>${(finalRate * mult).toFixed(1)}</b>상자 필요 · 상자당 ${man(D.ITEMS[x].cost)}</div></div>`;
-    const node = (x, mult) => {
-      if (D.ITEMS[x].raw) return raw(x, mult);
-      const r = D.RECIPES[x];
-      const ins = Object.entries(r.in);
-      const upstream = ins.length === 1
-        ? node(ins[0][0], mult * ins[0][1])
-        : `<div class="branches">${ins.map(([y, n]) => `<div class="branch">${node(y, mult * n)}</div>`).join('')}</div>`;
-      return `${upstream}<div class="parrow">${ins.length > 1 ? '⤵ 합치기' : '↓'}</div>${step(x, mult)}`;
-    };
-    const unlocked = S.itemUnlocked(s, item);
+    const f = routeFacts(item, rt);
+    const rawBlocks = Object.keys(f.raws).map((x) => `<div class="pstep raw"><div class="ph"><span class="pi" style="background:#2F6F9E">📥</span><b>입고구</b><span class="grow"></span>${itemChip(x)}</div>
+      <div class="pm">분당 <b>${(target * f.raws[x]).toFixed(1)}</b>상자 · 상자당 ${man(D.ITEMS[x].cost)}</div>${D.ITEMS[x].desc ? `<div class="pm">${esc(D.ITEMS[x].desc)}</div>` : ''}</div>`).join('');
+    const flow = `${rawBlocks}${rt.map((c) => `<div class="parrow">↓</div>${step(c)}`).join('')}<div class="parrow">↓</div><div class="pstep out"><div class="ph"><span class="pi" style="background:#2E8B5E">📤</span><b>출하구</b><span class="grow"></span><span class="pm">분당 ${target.toFixed(1)}상자</span></div></div>`;
     const body = `<div class="card"><div class="row"><div class="big-ico">${it.icon}</div><div class="grow"><b style="font-size:16px">${esc(it.name)}</b>
-        <div class="muted">상자 1개 = ${it.lot}개 · 기준 개당 ${it.unitPrice.toLocaleString('ko-KR')}원</div>
-        <div class="muted">상자당 매출 ≈ ${man(it.lot * it.unitPrice)} · 원자재 ${man(rawCost)}</div></div></div>
-        ${unlocked ? '' : '<div class="tag no" style="margin-top:8px">아직 만들 수 없는 설비가 있어요</div>'}</div>
-      <div class="muted" style="padding:0 4px">위에서 아래로 상자가 흐릅니다. <b>균형</b> = 마지막 기계 1대를 쉬지 않게 돌리려면 그 공정에 필요한 대수 (기본 속도, 숙련공·좋은 기계면 더 빠름)</div>
-      <div class="process">${node(item, 1)}<div class="parrow">↓</div><div class="pstep out"><div class="ph"><span class="pi" style="background:#2E8B5E">📤</span><b>출하구</b><span class="grow"></span><span class="pm">분당 ${finalRate.toFixed(1)}상자</span></div></div></div>
+        ${it.final ? `<div class="muted">상자 1개 = ${it.lot.toLocaleString('ko-KR')}개 · 기준 개당 ${it.unitPrice.toLocaleString('ko-KR')}원 · 상자당 ${man(it.lot * it.unitPrice)}</div>` : ''}</div></div>
+        ${S.itemUnlocked(s, item) ? '' : '<div class="tag no" style="margin-top:8px">아직 만들 수 없는 설비가 있어요</div>'}</div>
+      ${routes.length > 1 ? `<h3 class="sec">만드는 방법 ${routes.length}가지 <span class="muted">· 눌러서 순서 보기</span></h3>` : ''}${cards}
+      <h3 class="sec">${esc((D.ROUTE_NOTES[S.routeKey(rt)] || { name: '공정' }).name)} 순서</h3>
+      <div class="muted" style="padding:0 4px">위에서 아래로 상자가 흐릅니다. <b>균형</b> = 마지막 기계 1대를 쉬지 않게 돌리려면 그 공정에 필요한 대수</div>
+      <div class="process">${flow}</div>
       ${ui.sheet.back ? `<button class="btn ghost full" data-a="process-back">‹ 수주로 돌아가기</button>` : ''}`;
     return shell('🗺️ 만드는 법', body);
+  }
+
+  function toolCard(t) {
+    const tl = S.toolOf(t);
+    if (!tl) return '';
+    const left = S.toolLeftFrac(t);
+    return `<div class="card ${t.status === 'tool_worn' ? 'bad' : ''}">
+      <div class="row"><b>🧰 ${esc(tl.name)}</b><span class="grow"></span><span class="dh">${Math.round(left * 100)}% 남음</span></div>
+      <div class="bar-mini ${left < 0.15 ? 'y' : ''}" style="margin-top:6px"><i style="width:${left * 100}%"></i></div>
+      <div class="muted" style="margin-top:4px">다 닳으면 알아서 갈아요 · ${man(S.toolCost(game.s, t))} · ${tl.sec}초 멈춤${t.status === 'tool_worn' ? ' · <b class="neg">돈이 없어 멈춤</b>' : ''}</div></div>`;
   }
 
   // ---------- 칸 살펴보기 ----------
@@ -431,12 +474,12 @@ export function createUI(game) {
       return shell('📥 입고구', `<div class="card">원자재를 사서 ${DIR_ARROW[t.dir]} 방향 벨트로 내보냅니다. 앞이 막히면 사지 않아요.
         <div class="kv" style="margin-top:6px"><span>최대 입고량</span><b class="dh">분당 ${Math.round(S.inputPerMin())}상자</b></div>
         <div class="kv"><span>분당 최대 원자재비</span><b class="dh">${man(S.inputPerMin() * (D.ITEMS[t.item]?.cost || 0))}</b></div></div>
-        <h3 class="sec">들일 원자재</h3>${raws.map(([id, v]) => `<div class="recipe ${t.item === id ? 'on' : ''}" data-a="raw" data-v="${id}">${itemChip(id)}<span class="grow"></span><span class="dh">${man(v.cost)}/상자</span></div>`).join('')}
+        <h3 class="sec">들일 원자재</h3>${raws.map(([id, v]) => `<div class="recipe ${t.item === id ? 'on' : ''}" data-a="raw" data-v="${id}"><div class="grow">${itemChip(id)}${v.desc ? `<div class="muted" style="margin-top:2px">${esc(v.desc)}</div>` : ''}</div><span class="dh">${man(v.cost)}/상자</span></div>`).join('')}
         <div class="card"><div class="row"><div class="grow"><b>입고</b> <span class="muted">${t.on ? '켜짐' : '꺼짐'}</span></div><button class="btn sm ${t.on ? 'ghost' : 'teal'}" data-a="input-toggle">${t.on ? '멈추기' : '켜기'}</button></div></div>${common}`);
     }
     if (t.k === 'output') {
       const finals = Object.entries(s.inventory).filter(([, n]) => n > 0);
-      return shell('📤 출하구', `<div class="card">완성 부품을 받아 창고에 쌓습니다. 주문 물량을 다 채우면 퇴근 때 트럭이 실어 가요.<br/><span class="muted">주문보다 ${D.LOGISTICS.outputBufferLots}상자 넘게 쌓이면 더 받지 않아 라인이 멈춥니다 (원자재 낭비 방지).</span></div>
+      return shell('📤 출하구', `<div class="card">완성 부품을 받아 창고에 쌓습니다. 주문 물량을 다 채우면 퇴근 때 트럭이 실어 가요.<br/><span class="muted">남는 상자는 창고에 두었다가 다음 주문에 씁니다. 주문 없는 물건만 계속 만들면 재료비만 나가니, 그럴 땐 입고구를 끄세요.</span></div>
         <h3 class="sec">창고</h3><div class="card">${finals.length ? finals.map(([it, n]) => {
           const extra = S.surplusLots(s, it);
           return `<div class="kv"><span>${itemChip(it)}</span><b class="dh">${n}상자 <span class="muted">/ 주문 ${S.demandLots(s, it)}</span></b></div>${extra ? `<button class="btn sm ghost full" style="margin:4px 0 6px" data-a="dump" data-v="${it}">남는 ${extra}상자 헐값 처분 (+${man(S.dumpValue(s, it))})</button>` : ''}`;
@@ -465,7 +508,7 @@ export function createUI(game) {
         <div class="kv"><span>작업자</span><b>${def.auto ? '필요 없음 🤖' : w ? `${esc(w.name)} ${stars(w.skill)}` : '<button class="btn sm red" data-a="sheet" data-v="staff">없음 — 직원 채용 ›</button>'}</b></div>
         <div class="kv"><span>기계 상태</span><span style="width:50%"><div class="bar-mini ${t.cond < 40 ? 'r' : t.cond < 60 ? 'y' : ''}"><i style="width:${t.cond}%"></i></div></span></div>
         <button class="btn ghost sm full" style="margin-top:8px" data-a="service" ${t.serviceLeft > 0 || t.broken || t.cond > 95 ? 'disabled' : ''}>🔧 정비해서 상태 100으로 (${man(serviceCost)})</button>
-      </div>
+      </div>${toolCard(t)}
       <h3 class="sec">레시피</h3>`;
     body += S.recipesFor(def.type).map((rid) => {
       const r = D.RECIPES[rid];
@@ -498,18 +541,19 @@ export function createUI(game) {
     let html = '';
     if (p.type === 'intro' || p.type === 'help') {
       html = `<div class="story"><div class="pp-hero"><div class="i">🏭</div><h2>아버지의 공장</h2>
-        <p>아버지가 30년 지킨 작은 부품 공장.\n남은 건 낡은 프레스와 용접기 한 줄,\n아버지와 같이 늙은 김반장과 박씨,\n그리고 빚 1억.</p></div></div>
+        <p>아버지가 30년 지킨 작은 볼트 공장.\n남은 건 낡은 CNC 선반 한 대,\n아버지와 같이 늙은 김반장과 박씨,\n그리고 빚 1억.</p></div></div>
         <div class="pp-body">
           <div class="card warn"><b>이 공장을 살려 보자</b>
             <div class="kv"><span>📋 수주</span><span>주문을 받아 납기 안에 상자를 채우세요</span></div>
             <div class="kv"><span>🏗️ 건설</span><span>입고구 → 벨트 → 기계 → 출하구</span></div>
             <div class="kv"><span>⚖️ 병목</span><span>느린 기계 앞에 상자가 밀립니다</span></div>
+            <div class="kv"><span>🧰 금형</span><span>성형 기계는 닳으면 알아서 갈아요 (돈·잠깐 멈춤)</span></div>
             <div class="kv"><span>💥 고장</span><span>연기 나는 기계를 눌러 수리</span></div>
             <div class="kv"><span>💰 월말</span><span>10일마다 월급·유지비·이자</span></div></div>
-          <div class="muted" style="text-align:center">🎯 목표: 완성차 직납을 따내고 빚을 모두 갚기</div>
+          <div class="muted" style="text-align:center">🎯 목표: 완성차에 볼트를 직납하고 빚을 모두 갚기</div>
           <button class="btn yel full" data-a="pp-ok">공장 문 열기</button></div>`;
     } else if (p.type === 'migrate') {
-      html = `<div class="pp-hero"><div class="i">🆕</div><h2>초반이 새로워졌어요</h2><p>첫날 주문, 할 일 안내, 용접 병목이 생겼습니다.\n예전 저장으로는 이 변화가 안 보여요.</p></div>
+      html = `<div class="pp-hero"><div class="i">🆕</div><h2>초반이 새로워졌어요</h2><p>게임이 새로워졌어요.\n예전 저장으로는 이 변화가 안 보여요.</p></div>
         <div class="pp-body"><button class="btn yel full" data-a="newgame-now">새 게임으로 시작 (추천)</button><button class="btn ghost full" data-a="pp-ok">지금 공장 계속하기</button></div>`;
     } else if (p.type === 'month') {
       const r = p.rec;
@@ -568,9 +612,13 @@ export function createUI(game) {
       if (v === 'build-split') { ui.buildMode = true; const i = PALETTE.findIndex((p) => p.kind === 'split'); ui.tool = { kind: 'split' }; renderBar(); renderBuildHint(); renderQuest(); return i; }
       if (v === 'orders-active') return openSheet('orders', { tab: 'active' });
       if (v === 'orders-clients') return openSheet('orders', { tab: 'clients' });
+      if (v === 'process-bolt') return openSheet('process', { item: 'bolt' });
+
       openSheet(v);
     },
     process: (v) => { const back = ui.sheet ? { type: ui.sheet.type, tab: ui.sheet.tab } : null; ui.sheet = { type: 'process', item: v, back }; renderSheet(); },
+    route: (v) => { ui.sheet.route = Number(v); renderSheet(); },
+
     'process-back': () => { const b = ui.sheet.back; ui.sheet = { ...b }; renderSheet(); },
     accept: (v) => { S.acceptOffer(game.s, Number(v)); ordersSig = ''; renderSheet(); renderOrders(); renderBar(); },
     decline: (v) => { S.declineOffer(game.s, Number(v)); renderSheet(); renderBar(); },

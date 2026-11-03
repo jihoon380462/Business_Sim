@@ -1,6 +1,6 @@
 // 아버지의 공장 — 시뮬레이션 (DOM 없음). 상태는 순수 데이터, tick 이 제자리에서 갱신한다.
-import * as D from './data.js?v=1.3.1';
-import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.3.1';
+import * as D from './data.js?v=1.4.0';
+import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.4.0';
 
 export const DX = [1, 0, -1, 0];
 export const DY = [0, 1, 0, -1];
@@ -10,7 +10,7 @@ export const opp = (d) => (d + 2) % 4;
 export function createGame(seed = Date.now()) {
   const lv = D.FLOOR.levels[1];
   const s = {
-    version: 1,
+    version: 2,
     seed: seed | 0,
     monthIndex: 0, day: 1, clock: D.TIME.workStart, phase: 'work', nightLeft: 0,
     overtime: false,
@@ -36,15 +36,13 @@ export function createGame(seed = Date.now()) {
     log: [],
   };
   for (const w of D.START_WORKERS) s.workers.push({ id: s.nextId++, ...w, machine: null, advisor: false });
-  // 아버지가 깔아 둔 브라켓 라인
+  // 아버지가 깔아 둔 볼트 절삭 라인 (강봉 → 낡은 선반 → 출하)
   const y = 2;
-  place(s, 0, y, { k: 'input', dir: 0, item: 'sheet', t: 0, on: true });
+  place(s, 0, y, { k: 'input', dir: 0, item: 'bar', t: 0, on: true });
   place(s, 1, y, belt(0));
-  place(s, 2, y, newMachine(s, 'press_old', 0, 'panel', 58));
-  place(s, 3, y, belt(0));
-  place(s, 4, y, belt(0));
-  place(s, 5, y, newMachine(s, 'weld_old', 0, 'bracket', 63));
-  place(s, 6, y, belt(0));
+  place(s, 2, y, belt(0));
+  place(s, 3, y, newMachine(s, 'lathe_old', 0, 'cut_bolt', 62));
+  for (let x = 4; x < 7; x++) place(s, x, y, belt(0));
   place(s, 7, y, { k: 'output' });
   assignWorkers(s);
   refreshCandidates(s);
@@ -55,18 +53,18 @@ export function createGame(seed = Date.now()) {
   startMonth(s, true);
   s.quest = 0;
   // 첫날부터 고를 주문 두 개
-  for (let i = 0; i < 2; i++) { const o = makeOffer(s, 0, 'bracket', 0.6 + i * 0.3); o.expires = absDay(s) + 3; s.offers.push(o); }
+  for (let i = 0; i < 2; i++) { const o = makeOffer(s, 0, 'bolt', 0.6 + i * 0.3); o.expires = absDay(s) + 3; s.offers.push(o); }
   return s;
 }
 
 function newMonthStats() {
-  return { revenue: 0, raw: 0, penalty: 0, crafts: 0, defects: 0, shippedLots: 0, otPay: 0, repairs: 0, built: 0 };
+  return { revenue: 0, raw: 0, penalty: 0, crafts: 0, defects: 0, shippedLots: 0, otPay: 0, repairs: 0, built: 0, tooling: 0, utility: 0 };
 }
 
 function belt(dir) { return { k: 'belt', dir, items: [] }; }
 
 function newMachine(s, model, dir, recipe = null, cond = 100) {
-  return { k: 'machine', id: s.nextId++, model, dir, recipe, inBuf: {}, outBuf: [], prog: 0, crafting: false, cond, broken: false, brokenSec: 0, repairLeft: 0, serviceLeft: 0, worker: null, status: 'idle', crafts: 0 };
+  return { k: 'machine', id: s.nextId++, model, dir, recipe, inBuf: {}, outBuf: [], prog: 0, crafting: false, cond, broken: false, brokenSec: 0, repairLeft: 0, serviceLeft: 0, worker: null, status: 'idle', crafts: 0, toolUsed: 0, toolLeft: 0, orderOnly: !!(recipe && D.RECIPES[recipe].finishing) };
 }
 
 export const idx = (s, x, y) => y * s.floor.cols + x;
@@ -114,10 +112,12 @@ function condMet(s, c) {
   if (c.rep && s.rep[c.rep[0]] < c.rep[1]) return false;
   if (c.tier != null && !tierUnlocked(s, c.tier)) return false;
   if (c.cert && !s.certs[c.cert]) return false;
+  if (c.month != null && s.monthIndex < c.month) return false;
   return true;
 }
-export function typeUnlocked(s, type) { return condMet(s, D.UNLOCKS.types[type]); }
-export function modelUnlocked(s, model) { return typeUnlocked(s, D.MACHINES[model].type) && condMet(s, D.UNLOCKS.models[model]); }
+// 한 번 풀린 설비는 신뢰가 떨어져도 다시 잠기지 않는다
+export function typeUnlocked(s, type) { return !!s.flags?.unlocked?.[type] || condMet(s, D.UNLOCKS.types[type]); }
+export function modelUnlocked(s, model) { return typeUnlocked(s, D.MACHINES[model].type) && (!!s.flags?.unlocked?.[model] || condMet(s, D.UNLOCKS.models[model])); }
 export function splitUnlocked(s) { return condMet(s, D.UNLOCKS.split); }
 /** 새로 풀린 설비를 알리고 기록 */
 export function checkUnlocks(s) {
@@ -148,18 +148,50 @@ export function defectRate(s, m) {
   const sk = machineDef(m).auto ? 0.8 : w ? D.WORKERS.defectSkill.base - D.WORKERS.defectSkill.per * w.skill : 1.6;
   return r.defect * sk * (1 + (100 - m.cond) / 80);
 }
-export function recipeUnlocked(s, rid) {
-  const r = D.RECIPES[rid];
-  return !r.ev || !!s.research.ev?.done;
+
+// ---------- 공구·금형 ----------
+export function toolOf(m) { return D.MACHINE_TYPES[machineDef(m).type].tool || null; }
+export function toolLife(m) { const t = toolOf(m); return t ? Math.round(t.life * (machineDef(m).toolLife || 1)) : 0; }
+/** 남은 공구 수명 (0~1) */
+export function toolLeftFrac(m) { const L = toolLife(m); return L ? Math.max(0, 1 - (m.toolUsed || 0) / L) : 1; }
+export function toolCost(s, m) { const t = toolOf(m); return t ? Math.round(t.cost * (s.news?.toolMult || 1)) : 0; }
+/** 상자 1개당 공구비 (기본 수명 기준) */
+export function toolCostPerLot(model) {
+  const def = D.MACHINES[model]; const t = D.MACHINE_TYPES[def.type].tool;
+  return t ? t.cost / (t.life * (def.toolLife || 1)) : 0;
 }
+function startToolChange(s, m) {
+  const cost = toolCost(s, m);
+  if (s.cash < cost) { m.status = 'tool_worn'; return fail('자금 부족'); }
+  s.cash -= cost; s.month.tooling += cost;
+  m.toolLeft = toolOf(m).sec;
+  return okr(cost);
+}
+export function recipeUnlocked(s, rid) { return !!D.RECIPES[rid]; }
 export function recipesFor(type) { return Object.entries(D.RECIPES).filter(([, r]) => r.machine === type).map(([id]) => id); }
 
+/** 이 완제품을 아직 더 만들어야 하나 (주문 − 창고 > 0) */
+export function wantsMore(s, item) { return D.ITEMS[item].final ? demandLots(s, item) - (s.inventory[item] || 0) - inTransit(s, item) > 0 : true; }
+/** 이미 만들고 있거나 벨트 위에 있는 이 물건 (곧 창고에 들어올 몫) */
+function inTransit(s, item) {
+  let n = 0;
+  for (const t of s.floor.tiles) {
+    if (!t) continue;
+    if (t.k === 'belt') { for (const x of t.items) if (x.it === item) n++; }
+    else if (t.k === 'split') { if (t.hold?.it === item) n++; }
+    else if (t.k === 'machine') {
+      for (const x of t.outBuf) if (x === item) n++;
+      if (t.recipe && D.RECIPES[t.recipe].out === item) {
+        if (t.crafting) n++;
+        const r = D.RECIPES[t.recipe];
+        n += Math.min(...Object.entries(r.in).map(([it, k]) => Math.floor((t.inBuf[it] || 0) / k)));
+      }
+    }
+  }
+  return n;
+}
 /** 열린 주문 중 이 부품의 미출하 로트 */
 export function demandLots(s, item) { return s.orders.filter((o) => o.item === item).reduce((a, o) => a + o.lots, 0); }
-function outputAccepts(s, item) {
-  if (!D.ITEMS[item].final) return false;
-  return (s.inventory[item] || 0) < demandLots(s, item) + D.LOGISTICS.outputBufferLots;
-}
 
 export function machinesList(s) { return s.floor.tiles.filter((t) => t && t.k === 'machine'); }
 export function machineValue(s) { return machinesList(s).reduce((a, m) => a + machineDef(m).price * (0.3 + 0.7 * m.cond / 100), 0); }
@@ -178,29 +210,110 @@ export function tierUnlocked(s, t) {
   return true;
 }
 
-/** 이 부품을 만들려면 필요한 기계 종류 / 레시피 체인 */
-export function chainFor(item) {
+/** 이 물건을 만드는 레시피들 */
+export function recipesMaking(item) { return Object.keys(D.RECIPES).filter((rid) => D.RECIPES[rid].out === item); }
+/**
+ * 이 물건을 만드는 모든 길. 길 = 원자재 쪽부터 순서대로 [{ recipe, machine, mult }].
+ * 사 올 수 있는 재료(raw)는 "여기서 사 온다"도 하나의 길이다.
+ */
+export function routesFor(item, mult = 1) {
+  const it = D.ITEMS[item];
   const out = [];
-  const walk = (it, mult) => {
-    const r = D.RECIPES[it];
-    if (!r) return;
-    out.push({ recipe: it, machine: r.machine, mult });
-    for (const [inp, n] of Object.entries(r.in)) walk(inp, mult * n);
-  };
-  walk(item, 1);
+  if (it.raw) out.push([]);
+  for (const rid of recipesMaking(item)) {
+    const r = D.RECIPES[rid];
+    let partial = [[]];
+    for (const [inp, n] of Object.entries(r.in)) {
+      const subs = routesFor(inp, mult * n);
+      const next = [];
+      for (const a of partial) for (const b of subs) next.push([...a, ...b]);
+      partial = next;
+    }
+    for (const p of partial) out.push([...p, { recipe: rid, machine: r.machine, mult }]);
+  }
   return out;
+}
+/** 길에서 사 오는 원자재 {물건: 상자 수} */
+export function routeRaws(route, item) {
+  const made = new Set(route.map((c) => D.RECIPES[c.recipe].out));
+  const raws = {};
+  for (const c of route) for (const [inp, n] of Object.entries(D.RECIPES[c.recipe].in)) if (!made.has(inp)) raws[inp] = (raws[inp] || 0) + n * c.mult;
+  if (!route.length) raws[item] = 1;
+  return raws;
+}
+/** 길 이름 (장단점 표 키) */
+export function routeKey(route) {
+  const first = route.find((c) => D.ROUTE_NOTES[c.recipe]);
+  return first ? first.recipe : null;
+}
+/** 이 물건을 만드는 데 거치는 단계 물건들 (자기 자신 포함, 위쪽으로) */
+function stagesOf(item, acc = new Set()) {
+  acc.add(item);
+  for (const rid of recipesMaking(item)) for (const inp of Object.keys(D.RECIPES[rid].in)) if (D.ITEMS[inp].final) stagesOf(inp, acc);
+  return acc;
+}
+/** 이 물건 extra 상자를 더 받으면 지금 걸린 주문까지 다 끝내는 데 며칠 걸리나 (같은 단계를 쓰는 다른 주문도 센다) */
+export function estimateDays(s, item, extra = 0) {
+  const finals = Object.keys(D.ITEMS).filter((x) => D.ITEMS[x].final);
+  const remain = Object.fromEntries(finals.map((x) => [x, Math.max(0, demandLots(s, x) - (s.inventory[x] || 0))]));
+  remain[item] = (remain[item] || 0) + extra;
+  let days = 0;
+  for (const st of stagesOf(item)) {
+    const cap = capacityOf(s, st, new Set(), st === item);
+    if (!(cap > 0)) return null;
+    const load = finals.filter((x) => stagesOf(x).has(st)).reduce((a, x) => a + remain[x], 0);
+    days = Math.max(days, load / cap);
+  }
+  return Math.ceil(days);
 }
 export function canProduce(s, item) {
   const types = new Set(machinesList(s).map((m) => machineDef(m).type));
-  return chainFor(item).every((c) => types.has(c.machine) && recipeUnlocked(s, c.recipe));
+  return routesFor(item).some((rt) => rt.length && rt.every((c) => types.has(c.machine)));
 }
-function refLotsPerDay(item) {
-  const worst = Math.max(...chainFor(item).map((c) => D.RECIPES[c.recipe].time * c.mult));
-  return (D.OFFERS.refLotsPerDay * 2.4) / worst;
-}
-/** 체인의 모든 설비가 해금됐는가 */
+/** 어떤 길이든 설비가 전부 해금됐는가 */
 export function itemUnlocked(s, item) {
-  return chainFor(item).every((c) => typeUnlocked(s, c.machine) && recipeUnlocked(s, c.recipe));
+  return routesFor(item).some((rt) => rt.length && rt.every((c) => typeUnlocked(s, c.machine)));
+}
+/** 이 기계가 만든 물건이 (다른 기계에 먹히지 않고) 벨트·분배기를 따라 출하구까지 가는가 */
+export function feedsOutput(s, m) {
+  const i = s.floor.tiles.indexOf(m);
+  if (i < 0 || !m.recipe) return false;
+  const it = D.RECIPES[m.recipe].out;
+  const seen = new Set();
+  const stack = [[i % s.floor.cols + DX[m.dir], Math.floor(i / s.floor.cols) + DY[m.dir], m.dir]];
+  while (stack.length) {
+    const [x, y, d] = stack.pop();
+    const t = tile(s, x, y);
+    if (!t) continue;
+    const key = `${x},${y}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (t.k === 'output') return true;
+    if (t.k === 'belt') { if (t.dir !== opp(d)) stack.push([x + DX[t.dir], y + DY[t.dir], t.dir]); }
+    else if (t.k === 'split') for (const nd of [t.dir, (t.dir + 1) % 4, (t.dir + 3) % 4]) { if (nd !== opp(d)) stack.push([x + DX[nd], y + DY[nd], nd]); }
+    // 기계: 이 물건을 재료로 쓰면 거기서 끝 (다른 물건이 됨). 안 쓰면 막힘
+  }
+  return false;
+}
+/**
+ * 지금 공장의 분당 생산 능력 (같은 레시피 기계 합, 길이 여럿이면 더한다).
+ * top = 출하할 물건이면 출하구로 이어진 기계만 센다 (전조기 뒤에 열처리로가 있으면 그 볼트는 일반 볼트로 안 나감)
+ */
+export function capacityOf(s, item, seen = new Set(), top = true) {
+  const rs = recipesMaking(item);
+  if (!rs.length || seen.has(item)) return D.ITEMS[item].raw ? Infinity : 0;
+  seen = new Set(seen); seen.add(item);
+  let total = 0;
+  for (const rid of rs) {
+    const own = machinesList(s).filter((m) => m.recipe === rid && !m.broken && m.enabled !== false && (!top || feedsOutput(s, m))).reduce((a, m) => a + machinePerMin(s, m), 0);
+    let cap = own;
+    for (const [inp, n] of Object.entries(D.RECIPES[rid].in)) {
+      const up = D.ITEMS[inp].raw ? Infinity : capacityOf(s, inp, seen, false);
+      cap = Math.min(cap, up / n);
+    }
+    total += cap;
+  }
+  return total;
 }
 
 // ============================================================ 직원
@@ -294,7 +407,7 @@ export function build(s, x, y, kind, { dir = 0, model = null } = {}) {
   let t;
   if (kind === 'belt') t = belt(dir);
   else if (kind === 'split') t = { k: 'split', dir, hold: null, rr: 0 };
-  else if (kind === 'input') t = { k: 'input', dir, item: 'sheet', t: 0, on: true };
+  else if (kind === 'input') t = { k: 'input', dir, item: 'bar', t: 0, on: true };
   else if (kind === 'output') t = { k: 'output' };
   else if (kind === 'machine') {
     const type = D.MACHINES[model].type;
@@ -337,7 +450,7 @@ export function setRecipe(s, x, y, recipe) {
   const m = tile(s, x, y);
   if (!m || m.k !== 'machine') return fail('');
   if (recipe && (D.RECIPES[recipe].machine !== machineDef(m).type || !recipeUnlocked(s, recipe))) return fail('불가');
-  m.recipe = recipe; m.inBuf = {}; m.crafting = false; m.prog = 0;
+  m.recipe = recipe; m.inBuf = {}; m.crafting = false; m.prog = 0; m.orderOnly = !!(recipe && D.RECIPES[recipe].finishing);
   assignWorkers(s);
   return okr();
 }
@@ -379,11 +492,12 @@ export function upgradeMachine(s, x, y, model) {
   const m = tile(s, x, y);
   if (!m || m.k !== 'machine') return fail('');
   if (D.MACHINES[model].type !== machineDef(m).type || model === m.model) return fail('');
+  if (m.toolLeft > 0) return fail('금형 교체 중');
   if (!modelUnlocked(s, model)) return fail('아직 해금 안 됨');
   const refund = Math.round(machineDef(m).price * D.MACHINE_RULES.sellRate * Math.max(0.3, m.cond / 100));
   const cost = buildCost(s, 'machine', model) - refund;
   if (!spend(s, Math.max(0, cost), true)) return fail('자금 부족');
-  m.model = model; m.cond = 100; m.broken = false; m.repairLeft = 0; m.serviceLeft = 0;
+  m.model = model; m.cond = 100; m.broken = false; m.repairLeft = 0; m.serviceLeft = 0; m.toolUsed = 0; m.toolLeft = 0;
   if (D.MACHINES[model].auto) unlock(s, 'robot');
   assignWorkers(s);
   return okr();
@@ -566,6 +680,7 @@ function accepts(s, x, y, it, travelDir, dryRun = false) {
   }
   if (t.k === 'machine') {
     if (!t.recipe || t.enabled === false) return false;
+    if (t.orderOnly && !wantsMore(s, D.RECIPES[t.recipe].out)) return false;
     const need = D.RECIPES[t.recipe].in[it];
     if (!need) return false;
     if ((t.inBuf[it] || 0) >= need * D.MACHINE_RULES.inBufferMult) return false;
@@ -573,10 +688,15 @@ function accepts(s, x, y, it, travelDir, dryRun = false) {
     return true;
   }
   if (t.k === 'output') {
-    if (!outputAccepts(s, it)) return false;
+    // 출하구는 완제품을 언제나 받는다 (안 받으면 여러 제품이 섞인 벨트 전체가 막힘). 남는 건 창고에 두고 다음 주문에 쓴다
+    if (!D.ITEMS[it].final) return false;
     if (!dryRun) {
       s.inventory[it] = (s.inventory[it] || 0) + 1;
       s.fx.push({ type: 'deliver', x, y, it });
+      if (surplusLots(s, it) > D.LOGISTICS.outputBufferLots) {
+        s.flags.whFull = s.flags.whFull || {};
+        if (s.flags.whFull[it] !== absDay(s)) { s.flags.whFull[it] = absDay(s); toast(s, '📦', `주문 없는 ${D.ITEMS[it].name}이(가) 창고에 ${surplusLots(s, it)}상자 — 재료비만 나가요. 입고를 끄거나 처분하세요`); }
+      }
     }
     return true;
   }
@@ -669,9 +789,23 @@ function simulateMachine(s, m, x, y, dt) {
   if (!m.recipe) { m.status = 'no_recipe'; return; }
   if (m.enabled === false) { m.status = 'off'; return; }
   if (!def.auto && !m.worker) { m.status = 'no_worker'; return; }
+  if (m.toolLeft > 0) {
+    m.status = 'tool_change';
+    m.toolLeft -= dt * (def.auto ? 1 : Math.max(0.5, machineRate(s, m) / def.speed));
+    if (m.toolLeft <= 0) { m.toolLeft = 0; m.toolUsed = 0; }
+    return;
+  }
   const r = D.RECIPES[m.recipe];
+  if (!m.crafting && toolOf(m) && (m.toolUsed || 0) >= toolLife(m)) {
+    const res = startToolChange(s, m);
+    if (!res.ok) { if (!m.toolWarned) { m.toolWarned = true; toast(s, '🧰', `${def.name} ${toolOf(m).name} 교체비가 없어 멈췄어요`); } return; }
+    m.toolWarned = false;
+    m.status = 'tool_change';
+    return;
+  }
   if (!m.crafting) {
     if (m.outBuf.length >= R.outBuffer) { m.status = 'blocked'; return; }
+    if (m.orderOnly && !wantsMore(s, r.out) && !Object.keys(r.in).some((it) => m.inBuf[it])) { m.status = 'wait_order'; return; }
     const ok = Object.entries(r.in).every(([it, n]) => (m.inBuf[it] || 0) >= n);
     if (!ok) { m.status = 'starved'; return; }
     for (const [it, n] of Object.entries(r.in)) m.inBuf[it] -= n;
@@ -682,6 +816,9 @@ function simulateMachine(s, m, x, y, dt) {
   if (m.prog >= 1) {
     m.crafting = false; m.prog = 0; m.crafts += 1;
     s.month.crafts += 1;
+    if (toolOf(m)) m.toolUsed = (m.toolUsed || 0) + 1;
+    if (r.runCost) { s.cash -= r.runCost; s.month.utility += r.runCost; }
+    if (m.recipe === 'roll' && m.crafts >= 10) unlock(s, 'forming');
     if (rand(s) < defectRate(s, m)) { s.month.defects += 1; s.fx.push({ type: 'defect', x, y }); }
     else m.outBuf.push(r.out);
     m.cond = Math.max(0, m.cond - R.wearPerCraft * def.wear);
@@ -763,7 +900,7 @@ function shipOrders(s, today) {
       s.flags.shippedItems = s.flags.shippedItems || {};
       s.flags.shippedItems[o.item] = true;
       s.flags.shippedCount = (s.flags.shippedCount || 0) + 1;
-      if (Object.keys(s.flags.shippedItems).length >= 2) unlock(s, 'second_line');
+      if (o.item === 'bolt88') unlock(s, 'high_str');
       checkEnding(s);
     } else if (late > D.OFFERS.cancelAfterLateDays) {
       const fee = Math.round(o.lots * D.ITEMS[o.item].lot * o.unitPrice * D.OFFERS.cancelFeeRate);
@@ -778,16 +915,6 @@ function shipOrders(s, today) {
 export function fmtQty(o) { return `${(o.lots * D.ITEMS[o.item].lot).toLocaleString('ko-KR')}개`; }
 const clampRep = (v) => Math.max(0, Math.min(100, v));
 
-function itemDemandWeight(s, item) {
-  const it = D.ITEMS[item];
-  const y = yearOf(s);
-  const T = D.TRANSITION;
-  if (y < T.startYear) return it.ev ? 0.6 : 1;
-  const k = y - T.startYear + 1;
-  if (it.ice) return Math.max(0.15, 1 - T.iceDecline * k);
-  if (it.ev) return 1 + T.evBoost * k;
-  return 1;
-}
 
 function generateOffers(s) {
   const O = D.OFFERS;
@@ -796,11 +923,11 @@ function generateOffers(s) {
     if (!tierUnlocked(s, t)) continue;
     const p = O.dailyChance[t] * (s.news?.offerMult || 1) * (0.5 + s.rep[t] / 100);
     if (!chance(s, p)) continue;
-    const parts = O.parts[t].filter((it) => (!D.ITEMS[it].ev || s.research.ev?.done || yearOf(s) >= D.TRANSITION.startYear) && chainFor(it).every((c) => typeUnlocked(s, c.machine)));
+    const parts = O.parts[t].filter((it) => itemUnlocked(s, it));
     if (!parts.length) continue;
     const producible = parts.filter((it) => canProduce(s, it));
     const pool = producible.length && chance(s, O.producibleBias) ? producible : parts;
-    const item = weighted(s, pool.map((it) => [it, itemDemandWeight(s, it)]));
+    const item = pick(s, pool);
     s.offers.push(makeOffer(s, t, item));
   }
 }
@@ -808,10 +935,8 @@ function generateOffers(s) {
 function makeOffer(s, t, item, mult = 1) {
   const O = D.OFFERS;
   const days = range(s, O.daysOfWork[t][0], O.daysOfWork[t][1]);
-  const rpd = refLotsPerDay(item);
-  const lots = Math.max(2, Math.round(rpd * days * (0.7 + s.rep[t] / 170) * mult));
-  const decline = D.ITEMS[item].ice ? itemDemandWeight(s, item) : 1;
-  const unitPrice = Math.round(D.ITEMS[item].unitPrice * O.tierPriceMult[t] * (1 + range(s, -O.priceJitter, O.priceJitter)) * (decline < 1 ? 0.85 + 0.15 * decline : 1));
+  const lots = Math.max(2, Math.round(O.lotsPerDay[t] * days * (0.7 + s.rep[t] / 170) * mult));
+  const unitPrice = Math.round(D.ITEMS[item].unitPrice * O.tierPriceMult[t] * (1 + range(s, -O.priceJitter, O.priceJitter)));
   const dueDays = Math.max(2, Math.ceil(days * range(s, O.slack[0], O.slack[1])));
   return {
     id: s.nextId++, client: pick(s, D.CLIENTS[t]), tier: t, item, lots, unitPrice, dueDays,
@@ -829,7 +954,7 @@ function endMonth(s) {
   s.receivables = s.receivables.filter((r) => r.month > s.monthIndex);
   s.cash += collected;
   s.cash -= wages + m.otPay + overhead + interest;
-  const net = m.revenue - m.penalty - m.raw - wages - m.otPay - overhead - interest - m.repairs;
+  const net = m.revenue - m.penalty - m.raw - wages - m.otPay - overhead - interest - m.repairs - m.tooling - m.utility;
   let emergency = 0;
   if (s.cash < 0) {
     const need = -s.cash;
@@ -838,7 +963,7 @@ function endMonth(s) {
   }
   const rec = {
     monthIndex: s.monthIndex, label: `${yearOf(s)}년차 ${monthOf(s)}월`,
-    revenue: m.revenue, penalty: m.penalty, raw: m.raw, wages, otPay: m.otPay, overhead, interest, repairs: m.repairs, collected,
+    revenue: m.revenue, penalty: m.penalty, raw: m.raw, wages, otPay: m.otPay, overhead, interest, repairs: m.repairs, tooling: m.tooling, utility: m.utility, collected,
     net, cash: s.cash, loan: s.loan, crafts: m.crafts, defects: m.defects, shippedLots: m.shippedLots, emergency, built: m.built,
     receivable: s.receivables.reduce((a, r) => a + r.amount, 0),
   };
@@ -870,10 +995,7 @@ function startMonth(s, first) {
   if (s.monthIndex === D.STORY.veteranRetireMonth && s.workers.some((w) => w.veteran)) {
     s.popups.push({ type: 'story', id: 'veteran' });
   }
-  if (yearOf(s) === D.TRANSITION.startYear && monthOf(s) === 1 && !s.flags.evNews) {
-    s.flags.evNews = true;
-    s.popups.push({ type: 'news', news: { icon: '⚡', title: '전기차 전환 가속', text: '정부가 내연기관 신차 판매 종료를 앞당겼다. 기어·디스크 주문은 줄고, 배터리 케이스·모터 하우징 주문이 늘어난다.' } });
-  }
+  checkUnlocks(s);
   if (chance(s, D.NEWS_CHANCE)) {
     const pool = D.NEWS.filter((n) => (n.minMonth || 0) <= s.monthIndex);
     const n = weighted(s, pool.map((x) => [x, x.weight]));
@@ -936,7 +1058,7 @@ export function serialize(s) {
 export function deserialize(json) {
   try {
     const s = JSON.parse(json);
-    if (!s || s.version !== 1) return null;
+    if (!s || s.version !== 2) return null;
     s.fx = []; s.toasts = [];
     return s;
   } catch { return null; }
@@ -948,12 +1070,11 @@ function questDone(s, id) {
   const ms = machinesList(s);
   switch (id) {
     case 'accept': return !!s.flags.acceptedAny;
-    case 'split': return ms.filter((m) => m.recipe === 'bracket').length >= 2;
-    case 'staff': return ms.every((m) => !m.recipe || m.enabled === false || machineDef(m).auto || m.worker) && s.workers.length >= 3;
+    case 'split': return ms.filter((m) => m.recipe === 'cut_bolt').length >= 2;
     case 'ship': return (s.flags.shippedCount || 0) >= 1;
     case 'month': return s.history.length >= 1;
-    case 'product': return Object.keys(s.flags.shippedItems || {}).length >= 2;
-    case 'tier1': return tierUnlocked(s, 1);
+    case 'forming': return ms.some((m) => m.recipe === 'roll' && m.crafts >= 10);
+    case 'heat': return !!s.flags.shippedItems?.bolt88;
     case 'iso': return !!s.certs.iso;
     default: return false;
   }
