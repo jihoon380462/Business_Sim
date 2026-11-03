@@ -1,6 +1,6 @@
 // 화면 (DOM): HUD · 주문 띠 · 하단 바 · 시트 · 팝업 · 캔버스 입력
-import * as D from './data.js?v=1.4.0';
-import * as S from './sim.js?v=1.4.0';
+import * as D from './data.js?v=1.4.1';
+import * as S from './sim.js?v=1.4.1';
 
 // ---------- 표기 ----------
 export function man(n, { sign = false } = {}) {
@@ -187,7 +187,7 @@ export function createUI(game) {
         const cap = capacityOf(o.item);
         const days = S.estimateDays(s, o.item, o.lots);
         const miss = missingFor(o.item);
-        const capTxt = cap > 0 ? ` · 지금 라인 분당 ${cap.toFixed(1)}상자` : '';
+        const capTxt = '';
         const feas = miss.length ? `<span class="tag no">필요: ${miss.join(', ')}</span>` : days == null ? '<span class="tag no">라인 없음</span>' : days <= o.dueDays ? `<span class="tag ok">약 ${days}일이면 완료${capTxt}</span>` : `<span class="tag warn">약 ${days}일 걸림 (납기 ${o.dueDays}일)${capTxt}</span>`;
         return `<div class="card offer">
           <div class="head">${tierTag(o.tier)}<span class="client">${esc(o.client)}</span><span class="muted" style="margin-left:auto">${o.expires - today <= 0 ? '오늘까지' : `${o.expires - today}일 뒤 마감`}</span></div>
@@ -200,7 +200,7 @@ export function createUI(game) {
           <div class="row" style="flex-wrap:wrap;gap:6px">${feas}<span class="tag">${o.pay === 'cash' ? '💵 즉시 결제' : '🧾 다음 달 말 결제'}</span></div>
           <div class="btns" style="margin-top:10px"><button class="btn ghost sm" data-a="decline" data-v="${o.id}">거절</button><button class="btn pri sm" data-a="accept" data-v="${o.id}">수락</button></div>
         </div>`;
-      }).join('') : `<div class="card muted" style="text-align:center">새 주문이 아직 없어요. 매일 퇴근할 때 들어옵니다.<br/>평판이 오르면 더 자주, 더 크게 옵니다.</div>`;
+      }).join('') : `<div class="card muted" style="text-align:center">새 주문이 없어요 · 매일 퇴근 때 들어와요</div>`;
     } else if (tab === 'active') {
       const os = [...s.orders].sort((a, b) => a.dueDay - b.dueDay);
       body = os.length ? os.map((o) => {
@@ -214,7 +214,6 @@ export function createUI(game) {
           ${left < 0 ? `<div class="muted" style="margin-top:4px">하루 늦을 때마다 위약금 ${Math.round(D.TIERS[o.tier].penaltyPerDay * 100)}%, ${D.OFFERS.cancelAfterLateDays}일 넘으면 계약 해지</div>` : ''}
         </div>`;
       }).join('') : '<div class="card muted" style="text-align:center">진행 중인 주문이 없어요</div>';
-      body += `<div class="muted" style="text-align:center">출하구에 상자가 다 모이면 그날 퇴근할 때 트럭이 실어 갑니다</div>`;
     } else {
       body = [0, 1, 2, 3].map((t) => {
         const T = D.TIERS[t];
@@ -230,7 +229,6 @@ export function createUI(game) {
         return `<div class="card" style="${unlocked ? '' : 'opacity:.75'}">
           <div class="row">${tierTag(t)}<span class="muted">${T.pay === 'cash' ? '즉시 결제' : '다음 달 말 결제'} · 지연 위약금 ${Math.round(T.penaltyPerDay * 100)}%/일</span></div>
           <div class="row" style="margin-top:8px"><span class="muted" style="width:34px">신뢰</span><div class="grow"><div class="bar-mini ${s.rep[t] < 40 ? 'r' : s.rep[t] < 60 ? 'y' : ''}"><i style="width:${s.rep[t]}%"></i></div></div><span class="dh">${Math.round(s.rep[t])}</span></div>
-          <div class="muted" style="margin-top:4px">주문 부품: ${D.OFFERS.parts[t].map((it) => D.ITEMS[it].icon + D.ITEMS[it].name).join(', ')}</div>
           ${need}</div>`;
       }).join('');
     }
@@ -247,8 +245,8 @@ export function createUI(game) {
     const mName = (id) => { const m = ms.find((x) => x.id === id); return m ? S.machineDef(m).name : null; };
     let body = `<div class="card ${working < needed ? 'warn' : ''}"><div class="row"><div class="grow"><b>작업자 ${s.workers.filter((w) => !w.advisor).length}명</b> / 사람이 필요한 기계 ${needed}대</div><span class="dh" style="font-size:16px">월 ${man(wages)}</span></div>
       ${working < needed ? `<div class="muted" style="margin-top:4px">⚠️ 기계 ${needed - working}대가 사람이 없어 멈춰 있어요</div>` : ''}
-      <div class="muted" style="margin-top:4px">숙련공은 느린 공정(병목)에 자동 배치됩니다</div></div>
-      <div class="card"><div class="row"><div class="grow"><b>🌙 야근</b><div class="muted">22시까지 일함 · 시급 1.5배 · 사기 하루 −3</div></div><button class="btn sm ${s.overtime ? 'red' : 'ghost'}" data-a="ot">${s.overtime ? '끄기' : '켜기'}</button></div></div>
+</div>
+      <div class="card"><div class="row"><div class="grow"><b>🌙 야근</b><div class="muted">22시까지 · 시급 1.5배</div></div><button class="btn sm ${s.overtime ? 'red' : 'ghost'}" data-a="ot">${s.overtime ? '끄기' : '켜기'}</button></div></div>
       <div class="card"><div class="row"><div class="grow"><b>🎁 보너스</b><div class="muted">월급의 50% (${man(Math.round(wages * D.WORKERS.bonusRate))}) · 사기 +${D.WORKERS.bonusMorale}</div></div><button class="btn sm yel" data-a="bonus">지급</button></div></div>
       <h3 class="sec">우리 직원</h3>`;
     body += s.workers.map((w) => `<div class="card"><div class="row"><div class="big-ico">${w.advisor ? '🧓' : w.veteran ? '👴' : '👷'}</div>
@@ -278,7 +276,7 @@ export function createUI(game) {
       <div class="kv"><span>이번 달 원자재비 (지금까지)</span><b class="dh">${man(s.month.raw)}</b></div>
       <div class="kv"><span>이번 달 공구·금형비 (지금까지)</span><b class="dh">${man(s.month.tooling || 0)}</b></div>
       ${s.month.utility ? `<div class="kv"><span>이번 달 가스·약품비 (지금까지)</span><b class="dh">${man(s.month.utility)}</b></div>` : ''}
-      <div class="muted" style="margin-top:4px">월말(10일 퇴근)에 한꺼번에 나갑니다. 현금이 모자라면 자동으로 빚을 지고, 한도도 넘으면 부도.</div></div>
+</div>
       <h3 class="sec">🏦 대출</h3><div class="card">
       <div class="kv"><span>빚</span><b class="dh">${man(s.loan)}</b></div>
       <div class="kv"><span>한도 (기계 가치 반영)</span><b class="dh">${man(limit)}</b></div>
@@ -292,7 +290,7 @@ export function createUI(game) {
         ${st.done ? '' : `<button class="btn sm yel" data-a="cert" data-v="${id}" ${st.ok ? '' : 'disabled'}>${man(c.cost)}</button>`}</div></div>`;
     }
     const d = S.lastMonthDefect(s);
-    body += `<div class="muted" style="padding:0 4px">지난달 불량률: <b>${d == null ? '-' : (d * 100).toFixed(2) + '%'}</b> · 숙련공·기계 정비가 낮춰 줍니다</div>`;
+    body += `<div class="muted" style="padding:0 4px">지난달 불량률 <b>${d == null ? '-' : (d * 100).toFixed(1) + '%'}</b></div>`;
     if (Object.keys(D.RESEARCH).length) body += `<h3 class="sec">⚡ 연구</h3>`;
     for (const [id, r] of Object.entries(D.RESEARCH)) {
       const st = s.research[id];
@@ -397,55 +395,41 @@ export function createUI(game) {
     const order = { cut_bolt: 0, head: 1 };
     const routes = S.routesFor(item).filter((rt) => rt.length).sort((a, b) => (order[S.routeKey(a)] ?? 9) - (order[S.routeKey(b)] ?? 9));
     const sel = Math.min(ui.sheet.route ?? 0, routes.length - 1);
-    // 길 비교 카드
+    const facts = routes.map((rt) => routeFacts(item, rt));
+    const fastest = Math.max(...facts.map((f) => f.perMin));
+    // 방법 카드: 나란히 두 장, 숫자만
     const cards = routes.map((rt, i) => {
-      const f = routeFacts(item, rt);
-      const note = D.ROUTE_NOTES[S.routeKey(rt)] || { name: '기본', icon: '🏭', pros: '', cons: '' };
-      const chain = rt.map((c) => `${D.MACHINE_TYPES[c.machine].icon}${D.MACHINE_TYPES[c.machine].name}`).join(' → ');
-      return `<div class="card route ${i === sel ? 'on' : ''}" data-a="route" data-v="${i}">
-        <div class="row"><b>${note.icon} ${esc(note.name)}</b><span class="muted" style="margin-left:6px">${esc(chain)}</span><span class="grow"></span>${f.locked ? `<span class="tag no">🔒</span>` : ''}</div>
-        <div class="facts">
-          <div><div class="l">분당</div><div class="v">${f.perMin.toFixed(0)}상자</div></div>
-          <div><div class="l">기계값</div><div class="v">${man(f.price)}</div></div>
-          <div><div class="l">상자당 원가</div><div class="v">${man(f.rawCost + f.tool + f.run)}</div></div>
-        </div>
-        ${note.pros ? `<div class="pm">👍 ${esc(note.pros)} &nbsp; 👎 ${esc(note.cons)}</div>` : ''}
-        ${f.locked ? `<div class="pm neg">🔒 ${esc(f.locked)}</div>` : ''}
-      </div>`;
+      const f = facts[i];
+      const note = D.ROUTE_NOTES[S.routeKey(rt)] || { name: '기본', icon: '🏭' };
+      const icons = rt.map((c) => D.MACHINE_TYPES[c.machine].icon).join('');
+      return `<button class="rcard ${i === sel ? 'on' : ''} ${f.locked ? 'lock' : ''}" data-a="route" data-v="${i}">
+        <div class="rt">${note.icon} ${esc(note.name)}</div>
+        <div class="ri">${icons}</div>
+        <div class="rbar"><i style="width:${Math.max(8, (f.perMin / fastest) * 100)}%"></i></div>
+        <div class="rv"><b>${f.perMin.toFixed(0)}</b><small>상자/분</small></div>
+        <div class="rk"><span>기계</span><b>${man(f.price)}</b></div>
+        <div class="rk"><span>원가</span><b>${man(f.rawCost + f.tool + f.run)}</b></div>
+        ${f.locked ? `<div class="rlock">🔒 ${esc(f.locked)}</div>` : ''}
+      </button>`;
     }).join('');
-    // 고른 길의 공정 단계 (위 → 아래)
+    // 고른 방법의 흐름: 아이콘 줄
     const rt = routes[sel];
-    const last = rt[rt.length - 1];
-    const lastDef = D.MACHINES[Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === last.machine)];
-    const target = S.recipePerMin(last.recipe, lastDef.speed); // 마지막 기계 1대 기준
-    const step = (c) => {
-      const r = D.RECIPES[c.recipe];
-      const type = D.MACHINE_TYPES[r.machine];
-      const model = Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === r.machine);
-      const rpm = S.recipePerMin(c.recipe, D.MACHINES[model].speed);
-      const need = (target * c.mult) / rpm;
+    const f = facts[sel];
+    const node = (ico, name, sub, cls = '') => `<div class="fnode ${cls}"><div class="fi">${ico}</div><div class="fn">${esc(name)}</div>${sub ? `<div class="fs">${sub}</div>` : ''}</div>`;
+    const arrow = '<div class="farrow">›</div>';
+    const parts = Object.keys(f.raws).map((x) => node('📥', D.ITEMS[x].name, man(D.ITEMS[x].cost), 'raw'));
+    for (const c of rt) {
+      const type = D.MACHINE_TYPES[c.machine];
+      const model = Object.keys(D.MACHINES).find((id) => D.MACHINES[id].type === c.machine);
       const owned = ms.filter((m) => m.recipe === c.recipe).length;
-      const locked = !S.typeUnlocked(s, r.machine) ? D.UNLOCKS.types[r.machine]?.hint : null;
-      const tl = type.tool;
-      return `<div class="pstep ${locked ? 'lock' : owned ? 'have' : ''}">
-        <div class="ph"><span class="pi" style="background:${type.color}">${type.icon}</span><b>${type.name}</b><span class="grow"></span>${locked ? '<span class="tag no">🔒</span>' : owned ? `<span class="tag ok">보유 ${owned}</span>` : '<span class="tag">없음</span>'}</div>
-        <div class="flow">${Object.entries(r.in).map(([x, n]) => itemChip(x, n)).join(' + ')}<span class="arrow">→</span>${itemChip(r.out)}</div>
-        <div class="pm">${esc(D.MACHINES[model].name)} 1대 분당 <b>${rpm.toFixed(1)}</b>상자 · 균형 <b>${need.toFixed(1)}대</b> · ${man(D.MACHINES[model].price)}</div>
-        ${tl ? `<div class="pm">🧰 ${Math.round(tl.life * (D.MACHINES[model].toolLife || 1))}상자마다 금형 교체 ${man(tl.cost)}</div>` : ''}
-        ${locked ? `<div class="pm neg">해금: ${esc(locked)}</div>` : ''}</div>`;
-    };
-    const f = routeFacts(item, rt);
-    const rawBlocks = Object.keys(f.raws).map((x) => `<div class="pstep raw"><div class="ph"><span class="pi" style="background:#2F6F9E">📥</span><b>입고구</b><span class="grow"></span>${itemChip(x)}</div>
-      <div class="pm">분당 <b>${(target * f.raws[x]).toFixed(1)}</b>상자 · 상자당 ${man(D.ITEMS[x].cost)}</div>${D.ITEMS[x].desc ? `<div class="pm">${esc(D.ITEMS[x].desc)}</div>` : ''}</div>`).join('');
-    const flow = `${rawBlocks}${rt.map((c) => `<div class="parrow">↓</div>${step(c)}`).join('')}<div class="parrow">↓</div><div class="pstep out"><div class="ph"><span class="pi" style="background:#2E8B5E">📤</span><b>출하구</b><span class="grow"></span><span class="pm">분당 ${target.toFixed(1)}상자</span></div></div>`;
-    const body = `<div class="card"><div class="row"><div class="big-ico">${it.icon}</div><div class="grow"><b style="font-size:16px">${esc(it.name)}</b>
-        ${it.final ? `<div class="muted">상자 1개 = ${it.lot.toLocaleString('ko-KR')}개 · 기준 개당 ${it.unitPrice.toLocaleString('ko-KR')}원 · 상자당 ${man(it.lot * it.unitPrice)}</div>` : ''}</div></div>
-        ${S.itemUnlocked(s, item) ? '' : '<div class="tag no" style="margin-top:8px">아직 만들 수 없는 설비가 있어요</div>'}</div>
-      ${routes.length > 1 ? `<h3 class="sec">만드는 방법 ${routes.length}가지 <span class="muted">· 눌러서 순서 보기</span></h3>` : ''}${cards}
-      <h3 class="sec">${esc((D.ROUTE_NOTES[S.routeKey(rt)] || { name: '공정' }).name)} 순서</h3>
-      <div class="muted" style="padding:0 4px">위에서 아래로 상자가 흐릅니다. <b>균형</b> = 마지막 기계 1대를 쉬지 않게 돌리려면 그 공정에 필요한 대수</div>
-      <div class="process">${flow}</div>
-      ${ui.sheet.back ? `<button class="btn ghost full" data-a="process-back">‹ 수주로 돌아가기</button>` : ''}`;
+      const locked = !S.typeUnlocked(s, c.machine);
+      parts.push(node(type.icon, type.name, locked ? '🔒' : owned ? `✅ ${owned}대` : `${S.recipePerMin(c.recipe, D.MACHINES[model].speed).toFixed(0)}/분`, locked ? 'lock' : owned ? 'have' : ''));
+    }
+    parts.push(node('📤', '출하', '', 'out'));
+    const body = `<div class="phead"><span class="pbig">${it.icon}</span><div><b>${esc(it.name)}</b><div class="muted">상자당 ${man(it.lot * it.unitPrice)}</div></div></div>
+      ${routes.length > 1 ? `<div class="rcards">${cards}</div>` : ''}
+      <div class="flowrow">${parts.join(arrow)}</div>
+      ${ui.sheet.back ? `<button class="btn ghost full" data-a="process-back">‹ 돌아가기</button>` : ''}`;
     return shell('🗺️ 만드는 법', body);
   }
 
@@ -456,7 +440,7 @@ export function createUI(game) {
     return `<div class="card ${t.status === 'tool_worn' ? 'bad' : ''}">
       <div class="row"><b>🧰 ${esc(tl.name)}</b><span class="grow"></span><span class="dh">${Math.round(left * 100)}% 남음</span></div>
       <div class="bar-mini ${left < 0.15 ? 'y' : ''}" style="margin-top:6px"><i style="width:${left * 100}%"></i></div>
-      <div class="muted" style="margin-top:4px">다 닳으면 알아서 갈아요 · ${man(S.toolCost(game.s, t))} · ${tl.sec}초 멈춤${t.status === 'tool_worn' ? ' · <b class="neg">돈이 없어 멈춤</b>' : ''}</div></div>`;
+      <div class="muted" style="margin-top:4px">닳으면 자동 교체 ${man(S.toolCost(game.s, t))}${t.status === 'tool_worn' ? ' · <b class="neg">돈 없어 멈춤</b>' : ''}</div></div>`;
   }
 
   // ---------- 칸 살펴보기 ----------
@@ -467,20 +451,17 @@ export function createUI(game) {
     if (!t) return shell('빈 칸', '<div class="card muted">🏗️ 건설 모드에서 무언가를 놓을 수 있어요</div>');
     const common = `<div class="btns"><button class="btn ghost sm" data-a="rot">🔄 회전 ${DIR_ARROW[t.dir ?? 0]}</button><button class="btn ghost sm" data-a="del">🗑️ 철거</button></div>`;
     if (t.k === 'belt' || t.k === 'split') {
-      return shell(t.k === 'belt' ? '➡️ 벨트' : '🔀 분배기', `<div class="card">${t.k === 'split' ? '들어온 상자를 앞·왼쪽·오른쪽으로 번갈아 내보냅니다. 기계 두 대에 나눠 먹이거나, 두 줄을 합칠 때 씁니다.' : `상자를 ${DIR_ARROW[t.dir]} 방향으로 나릅니다.<div class="kv" style="margin-top:6px"><span>최대 운반량</span><b class="dh">분당 ${Math.round(S.beltPerMin())}상자</b></div>`}${t.jam ? '<div class="muted" style="margin-top:6px;color:var(--red)">⚠️ 막힘: 앞 칸이 이 물건을 받지 않아요</div>' : ''}</div>${common}`);
+      return shell(t.k === 'belt' ? '➡️ 벨트' : '🔀 분배기', `<div class="card">${t.k === 'split' ? '앞·왼쪽·오른쪽으로 번갈아 보내요' : `${DIR_ARROW[t.dir]} 방향 · 분당 ${Math.round(S.beltPerMin())}상자`}${t.jam ? '<div class="neg" style="margin-top:6px">⚠️ 막힘</div>' : ''}</div>${common}`);
     }
     if (t.k === 'input') {
       const raws = Object.entries(D.ITEMS).filter(([, v]) => v.raw);
-      return shell('📥 입고구', `<div class="card">원자재를 사서 ${DIR_ARROW[t.dir]} 방향 벨트로 내보냅니다. 앞이 막히면 사지 않아요.
-        <div class="kv" style="margin-top:6px"><span>최대 입고량</span><b class="dh">분당 ${Math.round(S.inputPerMin())}상자</b></div>
-        <div class="kv"><span>분당 최대 원자재비</span><b class="dh">${man(S.inputPerMin() * (D.ITEMS[t.item]?.cost || 0))}</b></div></div>
-        <h3 class="sec">들일 원자재</h3>${raws.map(([id, v]) => `<div class="recipe ${t.item === id ? 'on' : ''}" data-a="raw" data-v="${id}"><div class="grow">${itemChip(id)}${v.desc ? `<div class="muted" style="margin-top:2px">${esc(v.desc)}</div>` : ''}</div><span class="dh">${man(v.cost)}/상자</span></div>`).join('')}
-        <div class="card"><div class="row"><div class="grow"><b>입고</b> <span class="muted">${t.on ? '켜짐' : '꺼짐'}</span></div><button class="btn sm ${t.on ? 'ghost' : 'teal'}" data-a="input-toggle">${t.on ? '멈추기' : '켜기'}</button></div></div>${common}`);
+      const useFor = { bar: '⚙️ 선반용', wire: '🔨 성형용' };
+      return shell('📥 입고구', `${raws.map(([id, v]) => `<div class="recipe ${t.item === id ? 'on' : ''}" data-a="raw" data-v="${id}">${itemChip(id)}<span class="muted" style="margin-left:6px">${useFor[id] || ''}</span><span class="dh" style="margin-left:auto">${man(v.cost)}</span></div>`).join('')}
+        <div class="card"><div class="row"><div class="grow"><b>${t.on ? `분당 ${Math.round(S.inputPerMin())}상자` : '멈춤'}</b></div><button class="btn sm ${t.on ? 'ghost' : 'teal'}" data-a="input-toggle">${t.on ? '멈추기' : '켜기'}</button></div></div>${common}`);
     }
     if (t.k === 'output') {
       const finals = Object.entries(s.inventory).filter(([, n]) => n > 0);
-      return shell('📤 출하구', `<div class="card">완성 부품을 받아 창고에 쌓습니다. 주문 물량을 다 채우면 퇴근 때 트럭이 실어 가요.<br/><span class="muted">남는 상자는 창고에 두었다가 다음 주문에 씁니다. 주문 없는 물건만 계속 만들면 재료비만 나가니, 그럴 땐 입고구를 끄세요.</span></div>
-        <h3 class="sec">창고</h3><div class="card">${finals.length ? finals.map(([it, n]) => {
+      return shell('📤 출하구', `<h3 class="sec">창고</h3><div class="card">${finals.length ? finals.map(([it, n]) => {
           const extra = S.surplusLots(s, it);
           return `<div class="kv"><span>${itemChip(it)}</span><b class="dh">${n}상자 <span class="muted">/ 주문 ${S.demandLots(s, it)}</span></b></div>${extra ? `<button class="btn sm ghost full" style="margin:4px 0 6px" data-a="dump" data-v="${it}">남는 ${extra}상자 헐값 처분 (+${man(S.dumpValue(s, it))})</button>` : ''}`;
         }).join('') : '<div class="muted">비어 있음</div>'}</div>
@@ -500,17 +481,16 @@ export function createUI(game) {
     const serviceCost = Math.round(def.price * D.MACHINE_RULES.serviceCostRate);
     let body = `<div class="card ${t.broken ? 'bad' : t.status === 'work' ? '' : 'warn'}"><div class="row"><div class="big-ico" style="background:${type.color};color:#fff">${type.icon}</div>
       <div class="grow"><b>${esc(def.name)}</b>${def.auto ? ' <span class="tag ok">자동</span>' : ''}<div class="muted">${esc(statusText)}</div></div></div>
-      ${t.broken ? `<button class="btn red full" style="margin-top:10px" data-a="repair" ${t.repairLeft > 0 ? 'disabled' : ''}>${t.repairLeft > 0 ? '수리 중…' : `🛠️ 지금 수리 (${man(repairCost)})`}</button><div class="muted" style="margin-top:4px">놔두면 ${D.MACHINE_RULES.autoRepairAfterSec}초 뒤 외부 업체가 와서 ${D.MACHINE_RULES.autoRepairCostMult}배 비용으로 고칩니다</div>` : ''}</div>
+      ${t.broken ? `<button class="btn red full" style="margin-top:10px" data-a="repair" ${t.repairLeft > 0 ? 'disabled' : ''}>${t.repairLeft > 0 ? '수리 중…' : `🛠️ 지금 수리 (${man(repairCost)})`}</button>` : ''}</div>
       <div class="card">
-        <div class="kv"><span>분당 처리량</span><b class="dh">${lpd.toFixed(1)}상자 / 분</b></div>
-        <div class="kv"><span>속도 배율</span><b class="dh">×${S.machineRate(s, t).toFixed(2)}</b></div>
-        <div class="kv"><span>불량률</span><b class="dh">${(S.defectRate(s, t) * 100).toFixed(1)}%</b></div>
-        <div class="kv"><span>작업자</span><b>${def.auto ? '필요 없음 🤖' : w ? `${esc(w.name)} ${stars(w.skill)}` : '<button class="btn sm red" data-a="sheet" data-v="staff">없음 — 직원 채용 ›</button>'}</b></div>
-        <div class="kv"><span>기계 상태</span><span style="width:50%"><div class="bar-mini ${t.cond < 40 ? 'r' : t.cond < 60 ? 'y' : ''}"><i style="width:${t.cond}%"></i></div></span></div>
-        <button class="btn ghost sm full" style="margin-top:8px" data-a="service" ${t.serviceLeft > 0 || t.broken || t.cond > 95 ? 'disabled' : ''}>🔧 정비해서 상태 100으로 (${man(serviceCost)})</button>
-      </div>${toolCard(t)}
-      <h3 class="sec">레시피</h3>`;
-    body += S.recipesFor(def.type).map((rid) => {
+        ${t.recipe ? `<div class="kv"><span>${Object.keys(D.RECIPES[t.recipe].in).map((x) => D.ITEMS[x].name).join('+')} →</span>${itemChip(D.RECIPES[t.recipe].out)}</div>` : ''}
+        <div class="kv"><span>분당</span><b class="dh">${lpd.toFixed(1)}상자</b></div>
+        <div class="kv"><span>불량</span><b class="dh">${(S.defectRate(s, t) * 100).toFixed(1)}%</b></div>
+        <div class="kv"><span>작업자</span><b>${def.auto ? '필요 없음 🤖' : w ? `${esc(w.name)} ${stars(w.skill)}` : '<button class="btn sm red" data-a="sheet" data-v="staff">없음 · 채용 ›</button>'}</b></div>
+        <div class="kv"><span>상태</span><span style="width:50%"><div class="bar-mini ${t.cond < 40 ? 'r' : t.cond < 60 ? 'y' : ''}"><i style="width:${t.cond}%"></i></div></span></div>
+        <button class="btn ghost sm full" style="margin-top:8px" data-a="service" ${t.serviceLeft > 0 || t.broken || t.cond > 95 ? 'disabled' : ''}>🔧 정비 ${man(serviceCost)}</button>
+      </div>${toolCard(t)}`;
+    if (S.recipesFor(def.type).length > 1) body += `<h3 class="sec">레시피</h3>` + S.recipesFor(def.type).map((rid) => {
       const r = D.RECIPES[rid];
       const lock = !S.recipeUnlocked(s, rid);
       const ins = Object.entries(r.in).map(([it, n]) => itemChip(it, n)).join(' + ');
@@ -523,11 +503,10 @@ export function createUI(game) {
       const refund = Math.round(def.price * D.MACHINE_RULES.sellRate * Math.max(0.3, t.cond / 100));
       body += ups.map(([id, m]) => {
         const cost = Math.max(0, S.buildCost(s, 'machine', id) - refund);
-        return `<div class="card"><div class="row"><div class="grow"><b>${esc(m.name)}</b>${m.auto ? ' <span class="tag ok">작업자 불필요</span>' : ''}<div class="muted">속도 ×${m.speed} · 마모 ×${m.wear} · 기본 분당 ${t.recipe ? S.recipePerMin(t.recipe, m.speed).toFixed(1) : '-'}</div></div><button class="btn sm yel" data-a="upgrade" data-v="${id}" ${s.cash < cost ? 'disabled' : ''}>${man(cost)}</button></div></div>`;
+        return `<div class="card"><div class="row"><div class="grow"><b>${esc(m.name)}</b>${m.auto ? ' <span class="tag ok">작업자 불필요</span>' : ''}<div class="muted">분당 ${t.recipe ? S.recipePerMin(t.recipe, m.speed).toFixed(0) : '-'}상자</div></div><button class="btn sm yel" data-a="upgrade" data-v="${id}" ${s.cash < cost ? 'disabled' : ''}>${man(cost)}</button></div></div>`;
       }).join('');
-      body += `<div class="muted" style="padding:0 4px">지금 기계를 ${man(refund)}에 팔고 차액만 냅니다</div>`;
     }
-    body += `<button class="btn ${t.enabled === false ? 'teal' : 'ghost'} sm full" data-a="machine-toggle">${t.enabled === false ? '▶ 다시 가동' : '⏸ 이 기계 정지 (작업자를 다른 기계로)'}</button>`;
+    body += `<button class="btn ${t.enabled === false ? 'teal' : 'ghost'} sm full" data-a="machine-toggle">${t.enabled === false ? '▶ 다시 가동' : '⏸ 정지'}</button>`;
     body += common;
     return shell(`${type.icon} ${type.name}`, body);
   }
@@ -541,16 +520,12 @@ export function createUI(game) {
     let html = '';
     if (p.type === 'intro' || p.type === 'help') {
       html = `<div class="story"><div class="pp-hero"><div class="i">🏭</div><h2>아버지의 공장</h2>
-        <p>아버지가 30년 지킨 작은 볼트 공장.\n남은 건 낡은 CNC 선반 한 대,\n아버지와 같이 늙은 김반장과 박씨,\n그리고 빚 1억.</p></div></div>
+        <p>아버지가 남긴 작은 볼트 공장.\n낡은 선반 한 대, 직원 둘, 빚 1억.</p></div></div>
         <div class="pp-body">
-          <div class="card warn"><b>이 공장을 살려 보자</b>
-            <div class="kv"><span>📋 수주</span><span>주문을 받아 납기 안에 상자를 채우세요</span></div>
-            <div class="kv"><span>🏗️ 건설</span><span>입고구 → 벨트 → 기계 → 출하구</span></div>
-            <div class="kv"><span>⚖️ 병목</span><span>느린 기계 앞에 상자가 밀립니다</span></div>
-            <div class="kv"><span>🧰 금형</span><span>성형 기계는 닳으면 알아서 갈아요 (돈·잠깐 멈춤)</span></div>
-            <div class="kv"><span>💥 고장</span><span>연기 나는 기계를 눌러 수리</span></div>
-            <div class="kv"><span>💰 월말</span><span>10일마다 월급·유지비·이자</span></div></div>
-          <div class="muted" style="text-align:center">🎯 목표: 완성차에 볼트를 직납하고 빚을 모두 갚기</div>
+          <div class="card warn">
+            <div class="kv"><span>📋 주문 받기</span><span>🏗️ 라인 깔기</span></div>
+            <div class="kv"><span>🚚 납기 안에 출하</span><span>💰 10일마다 월급</span></div></div>
+          <div class="muted" style="text-align:center">🎯 완성차에 볼트 납품 + 빚 청산</div>
           <button class="btn yel full" data-a="pp-ok">공장 문 열기</button></div>`;
     } else if (p.type === 'migrate') {
       html = `<div class="pp-hero"><div class="i">🆕</div><h2>초반이 새로워졌어요</h2><p>게임이 새로워졌어요.\n예전 저장으로는 이 변화가 안 보여요.</p></div>

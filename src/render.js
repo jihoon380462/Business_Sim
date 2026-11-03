@@ -1,6 +1,6 @@
 // 탑뷰 공장 바닥 렌더 (캔버스). 시뮬 상태를 읽기만 한다.
-import * as D from './data.js?v=1.4.0';
-import { DX, DY, tile, machineDef, machinePerMin, inputPerMin, toolOf, toolLeftFrac } from './sim.js?v=1.4.0';
+import * as D from './data.js?v=1.4.1';
+import { DX, DY, tile, machineDef, machinePerMin, inputPerMin, toolOf, toolLeftFrac } from './sim.js?v=1.4.1';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');

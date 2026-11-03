@@ -1,8 +1,8 @@
 // 부트 · 게임 루프 · 저장
-import * as D from './data.js?v=1.4.0';
-import * as S from './sim.js?v=1.4.0';
-import { createRenderer } from './render.js?v=1.4.0';
-import { createUI } from './ui.js?v=1.4.0';
+import * as D from './data.js?v=1.4.1';
+import * as S from './sim.js?v=1.4.1';
+import { createRenderer } from './render.js?v=1.4.1';
+import { createUI } from './ui.js?v=1.4.1';
 
 const game = {
   s: null,

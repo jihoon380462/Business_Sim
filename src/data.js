@@ -1,6 +1,6 @@
 // 아버지의 공장 — 밸런스 데이터. 숫자는 여기서만 바꾼다.
 
-export const VERSION = '1.4.0';
+export const VERSION = '1.4.1';
 export const SAVE_KEY = 'fathers_factory_bolt_v1';
 
 // ---------- 시간 ----------
@@ -208,18 +208,11 @@ export const ACHIEVEMENTS = {
 // ---------- 할 일 (초반 안내 퀘스트) ----------
 // check 는 sim.js 의 questDone 에서 id 로 판정
 export const QUESTS = [
-  { id: 'accept',  icon: '📋', title: '주문 받아 오기', reward: 0,
-    text: '아버지 단골 주문만으로는 매달 적자예요.\n📋 수주 → 새 주문에서 [수락]을 누르세요.' },
-  { id: 'split',   icon: '🔀', title: '선반 한 대 더', reward: 3000000,
-    text: '선반이 느려서 강봉이 앞에 밀려 있어요.\n선반 왼쪽 벨트를 🔀 분배기로 바꾸고, 아래로 벨트 → ⚙️ 선반 → 벨트로 출하구까지 이어 주세요.' },
-  { id: 'ship',    icon: '🚚', title: '첫 출하', reward: 0,
-    text: '주문 상자가 다 모이면 퇴근할 때 트럭이 실어 가요. ▶▶ 를 눌러 기다려 보세요.' },
-  { id: 'month',   icon: '💰', title: '첫 월말 버티기', reward: 0,
-    text: '10일마다 월급·유지비·이자가 나가요. 선반만으로는 매달 조금씩 적자예요.\n첫 달을 넘기면 빠른 성형 설비가 풀려요.' },
-  { id: 'forming', icon: '🌀', title: '성형 라인 깔기', reward: 5000000,
-    text: '선재 코일 → 🔨 헤더 → 🌀 전조기 → 출하구.\n선반보다 3배 빠르고 재료도 싸요. 대신 기계가 비싸서(경영 → 대출) 금형값이 나가요.\n새 기계엔 사람도 필요해요 (👷 직원).' },
-  { id: 'heat',    icon: '♨️', title: '고강도 볼트', reward: 0,
-    text: '신뢰 70이면 ♨️ 열처리로가 풀려요. 볼트를 넣으면 고강도 볼트(값 1.7배)가 나와요.\n전조기 뒤 벨트 한 칸을 🔀 분배기로 바꾸고 옆에 열처리로 → 벨트 → 출하구.\n고강도 주문이 없으면 열처리로는 알아서 쉬어요.' },
-  { id: 'iso',     icon: '📜', title: 'ISO 9001 인증', reward: 0,
-    text: '🏢 경영 → 인증. 지난달 불량 3% 이하 + 3,000만원.\n불량이 많으면 기계를 눌러 🔧 정비하세요.' },
+  { id: 'accept',  icon: '📋', title: '주문 받아 오기', reward: 0, text: '📋 수주 → [수락]' },
+  { id: 'split',   icon: '🔀', title: '선반 한 대 더', reward: 3000000, text: '선반 왼쪽 벨트를 🔀 분배기로 바꾸고\n아래로 벨트 → ⚙️ 선반 → 출하구' },
+  { id: 'ship',    icon: '🚚', title: '첫 출하', reward: 0, text: '상자가 다 차면 퇴근 때 트럭이 가져가요 (▶▶)' },
+  { id: 'month',   icon: '💰', title: '첫 월말 버티기', reward: 0, text: '10일마다 월급·유지비가 나가요' },
+  { id: 'forming', icon: '🌀', title: '성형 라인 깔기', reward: 5000000, text: '선재 → 🔨 헤더 → 🌀 전조기 → 출하구\n돈은 🏢 경영 → 대출 · 사람은 👷 직원' },
+  { id: 'heat',    icon: '♨️', title: '고강도 볼트', reward: 0, text: '전조기 뒤를 🔀 분배기로 → 옆에 ♨️ 열처리로 → 출하구' },
+  { id: 'iso',     icon: '📜', title: 'ISO 인증', reward: 0, text: '🏢 경영 → 인증 (불량 3% 이하)' },
 ];

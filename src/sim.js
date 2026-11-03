@@ -1,6 +1,6 @@
 // 아버지의 공장 — 시뮬레이션 (DOM 없음). 상태는 순수 데이터, tick 이 제자리에서 갱신한다.
-import * as D from './data.js?v=1.4.0';
-import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.4.0';
+import * as D from './data.js?v=1.4.1';
+import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.4.1';
 
 export const DX = [1, 0, -1, 0];
 export const DY = [0, 1, 0, -1];
