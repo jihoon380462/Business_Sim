@@ -1,6 +1,6 @@
 // 화면 (DOM): HUD · 주문 띠 · 하단 바 · 시트 · 팝업 · 캔버스 입력
-import * as D from './data.js?v=1.3.0';
-import * as S from './sim.js?v=1.3.0';
+import * as D from './data.js?v=1.3.1';
+import * as S from './sim.js?v=1.3.1';
 
 // ---------- 표기 ----------
 export function man(n, { sign = false } = {}) {
@@ -608,7 +608,9 @@ export function createUI(game) {
   }
   function toastNow(text) { game.s.toasts.push({ icon: '', text, id: Math.random() }); pumpToasts(); }
 
+  let canvasTapAt = 0, canvasTapPos = { x: -99, y: -99 }; // 캔버스 탭 직후 따라오는 '유령 클릭'이 방금 연 창을 닫거나 버튼을 누르지 않게
   document.getElementById('app').addEventListener('click', (e) => {
+    if (performance.now() - canvasTapAt < 500 && Math.hypot(e.clientX - canvasTapPos.x, e.clientY - canvasTapPos.y) < 30 && e.target !== el.canvas) { e.preventDefault(); e.stopPropagation(); return; }
     const t = e.target.closest('[data-a]');
     if (t) { const f = act[t.dataset.a]; if (f) f(t.dataset.v, t); return; }
     if (e.target === el.sheetWrap) closeSheet();
@@ -660,6 +662,8 @@ export function createUI(game) {
     down = null;
   };
   el.canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+  // 터치가 끝난 뒤 브라우저가 만드는 click 을 막는다 (안 막으면 방금 뜬 창의 바깥/버튼이 눌림)
+  el.canvas.addEventListener('touchend', (e) => { if (e.cancelable) e.preventDefault(); }, { passive: false });
   el.canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
   el.canvas.addEventListener('wheel', (e) => {
     const p = pos(e);
@@ -704,7 +708,18 @@ export function createUI(game) {
     game.r.ghost = { ...t, valid: placing ? !occ : !!occ, dir: placing ? ui.dir : null };
   }
 
+  /** 기계·입고구가 벽 쪽(바닥 밖)을 보고 놓이지 않게: 막히면 옆 벨트 쪽 → 안쪽으로 돌린다 */
+  function smartDir(s, x, y, dir) {
+    const inside = (d) => { const nx = x + S.DX[d], ny = y + S.DY[d]; return nx >= 0 && ny >= 0 && nx < s.floor.cols && ny < s.floor.rows; };
+    if (inside(dir)) return dir;
+    const order = [0, 1, 2, 3].map((i) => (dir + i) % 4).filter(inside);
+    const toBelt = order.find((d) => { const n = S.tile(s, x + S.DX[d], y + S.DY[d]); return n && n.k === 'belt' && n.dir !== (d + 2) % 4; });
+    return toBelt ?? order[0] ?? dir;
+  }
+
   function tap(p) {
+    canvasTapAt = performance.now();
+    { const r = el.canvas.getBoundingClientRect(); canvasTapPos = { x: p.x + r.left, y: p.y + r.top }; }
     const s = game.s;
     const t = game.r.toTile(s, p.x, p.y);
     if (!t) return;
@@ -728,7 +743,9 @@ export function createUI(game) {
         if (same && cur.k !== 'output') { S.rotate(s, t.x, t.y); ui.dir = cur.dir; }
         else { ui.selected = t; openSheet('inspect', t); }
       } else {
-        const r = S.build(s, t.x, t.y, k, { dir: ui.dir, model: ui.tool.model });
+        const dir = k === 'belt' || k === 'output' ? ui.dir : smartDir(s, t.x, t.y, ui.dir);
+        const r = S.build(s, t.x, t.y, k, { dir, model: ui.tool.model });
+        if (r.ok) ui.dir = dir;
         if (!r.ok) toastNow(`⚠️ ${r.msg}`);
         else if (k === 'machine') toastNow(`${D.MACHINES[ui.tool.model].name} 설치 · 레시피는 완료 후 탭`);
       }

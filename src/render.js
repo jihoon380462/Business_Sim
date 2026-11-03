@@ -1,6 +1,6 @@
 // 탑뷰 공장 바닥 렌더 (캔버스). 시뮬 상태를 읽기만 한다.
-import * as D from './data.js?v=1.3.0';
-import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js?v=1.3.0';
+import * as D from './data.js?v=1.3.1';
+import { DX, DY, tile, machineDef, machinePerMin, inputPerMin } from './sim.js?v=1.3.1';
 
 export function createRenderer(canvas) {
   const ctx = canvas.getContext('2d');
@@ -19,7 +19,15 @@ export function createRenderer(canvas) {
     canvas.height = Math.round(rect.height * R.dpr);
   };
 
+  /** 캔버스의 실제 화면 크기가 바뀌었으면(건설판·주문 띠 높이 변화 등) 다시 맞춘다 */
+  R.sync = () => {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    if (Math.abs(w - R.w) > 0.5 || Math.abs(h - R.h) > 0.5 || dpr !== R.dpr) R.resize();
+  };
+
   R.layout = (s) => {
+    R.sync();
     const pad = 14;
     const base = Math.min((R.w - pad * 2) / s.floor.cols, 64);
     const T = Math.max(12, Math.floor(base * R.zoom));
@@ -50,6 +58,7 @@ export function createRenderer(canvas) {
   R.fit = () => { R.zoom = 1; R.panX = 0; R.scrollY = 0; };
 
   R.toTile = (s, px, py) => {
+    R.layout(s);
     const x = Math.floor((px - R.ox) / R.T);
     const y = Math.floor((py - R.oy) / R.T);
     if (x < 0 || y < 0 || x >= s.floor.cols || y >= s.floor.rows) return null;
@@ -64,6 +73,9 @@ export function createRenderer(canvas) {
       if (f.type === 'deliver') {
         const { cx, cy } = R.tileCenter(f.x, f.y);
         R.floats.push({ x: cx, y: cy - R.T * 0.3, text: '+1', color: '#2E9E6B', life: 0.8, max: 0.8, small: true });
+      } else if (f.type === 'wrong') {
+        const { cx, cy } = R.tileCenter(f.x, f.y);
+        R.floats.push({ x: cx, y: cy - R.T * 0.4, text: '버림', color: '#D9534F', life: 1.1, max: 1.1, small: true });
       } else if (f.type === 'defect') {
         const { cx, cy } = R.tileCenter(f.x, f.y);
         R.floats.push({ x: cx, y: cy - R.T * 0.4, text: '불량', color: '#D9534F', life: 1.1, max: 1.1, small: true });

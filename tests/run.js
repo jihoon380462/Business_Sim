@@ -259,5 +259,19 @@ test('철거 환불, 기계 교체', () => {
   ok(s.achievements.robot);
 });
 
+test('입고 품목을 바꾸기 전에 올라간 엉뚱한 재료가 라인을 영원히 막지 않음', () => {
+  const s = fresh(5); empty(s); s.cash = 1e9;
+  S.build(s, 0, 0, 'input', { dir: 0 }); // 기본 강판
+  S.build(s, 1, 0, 'belt', { dir: 0 });
+  S.build(s, 2, 0, 'machine', { model: 'lathe_old', dir: 0 });
+  S.build(s, 3, 0, 'belt', { dir: 0 }); S.build(s, 4, 0, 'output');
+  s.workers = s.workers.slice(0, 1); S.assignWorkers(s);
+  runSec(s, 3); // 강판이 벨트에 올라감
+  S.setInputItem(s, 0, 0, 'bar');
+  runSec(s, 20);
+  ok(S.tile(s, 2, 0).crafts > 0, '선반이 볼트를 만들어야 함');
+  ok(!S.tile(s, 1, 0).items.some((i) => i.it === 'sheet'), '강판이 남아 있으면 안 됨');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

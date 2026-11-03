@@ -1,6 +1,6 @@
 // 아버지의 공장 — 시뮬레이션 (DOM 없음). 상태는 순수 데이터, tick 이 제자리에서 갱신한다.
-import * as D from './data.js?v=1.3.0';
-import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.3.0';
+import * as D from './data.js?v=1.3.1';
+import { rand, range, int, chance, pick, weighted } from './rng.js?v=1.3.1';
 
 export const DX = [1, 0, -1, 0];
 export const DY = [0, 1, 0, -1];
@@ -539,6 +539,15 @@ function step(s, dt) {
 }
 
 // ------------------------------------------------------------ 바닥 물류
+/** 앞 칸이 이 물건을 앞으로도 절대 받지 않는가 (레시피가 정해진 기계인데 재료가 아님 / 출하구인데 완제품이 아님) */
+function neverAccepts(s, x, y, it) {
+  const t = tile(s, x, y);
+  if (!t) return false;
+  if (t.k === 'machine') return !!t.recipe && !D.RECIPES[t.recipe].in[it];
+  if (t.k === 'output') return !D.ITEMS[it].final;
+  return false;
+}
+
 function accepts(s, x, y, it, travelDir, dryRun = false) {
   const t = tile(s, x, y);
   if (!t) return false;
@@ -588,7 +597,14 @@ function simulateFloor(s, dt) {
           const limit = i === 0 ? 1 : t.items[i - 1].p - L.beltSpacing;
           item.p = Math.min(item.p + v, limit);
           if (i === 0 && item.p >= 1) {
-            if (accepts(s, x + DX[t.dir], y + DY[t.dir], item.it, t.dir)) { t.items.shift(); i--; }
+            const nx = x + DX[t.dir], ny = y + DY[t.dir];
+            if (accepts(s, nx, ny, item.it, t.dir)) { t.items.shift(); i--; }
+            else if (neverAccepts(s, nx, ny, item.it)) {
+              // 앞 기계가 절대 안 받는 재료(입고 품목을 바꾸기 전에 올라온 상자 등)는 버린다 — 안 버리면 라인이 영원히 멈춤
+              t.items.shift(); i--;
+              s.fx.push({ type: 'wrong', x, y, it: item.it });
+              if (t.wrongDay !== absDay(s)) { t.wrongDay = absDay(s); toast(s, '🗑️', `${D.ITEMS[item.it].name}은(는) 앞 기계에 안 맞아서 버렸어요`); }
+            }
             else item.p = 1;
           }
         }

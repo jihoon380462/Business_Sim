@@ -1,8 +1,8 @@
 // 부트 · 게임 루프 · 저장
-import * as D from './data.js?v=1.3.0';
-import * as S from './sim.js?v=1.3.0';
-import { createRenderer } from './render.js?v=1.3.0';
-import { createUI } from './ui.js?v=1.3.0';
+import * as D from './data.js?v=1.3.1';
+import * as S from './sim.js?v=1.3.1';
+import { createRenderer } from './render.js?v=1.3.1';
+import { createUI } from './ui.js?v=1.3.1';
 
 const game = {
   s: null,
@@ -33,6 +33,7 @@ function boot() {
   if (!game.s.popups.length && game.s.monthIndex + game.s.day > 1) game.ui.speed = 0; // 이어하기는 일시정지로 시작
   game.view.renderAll();
   window.addEventListener('resize', () => game.r.resize());
+  if (window.ResizeObserver) new ResizeObserver(() => game.r.sync()).observe(canvas);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { game.save(); game.ui.speed = 0; game.view.renderHud(); } });
   document.getElementById('boot').remove();
   window.__game = game; window.__S = S; // 디버그
